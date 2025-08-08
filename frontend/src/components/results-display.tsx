@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Eye, Activity, TrendingUp, Info } from "lucide-react";
+import { Eye, Activity, TrendingUp, Info, BarChart3 } from "lucide-react";
 
 interface TortuosityData {
   avg_tortuosity: number;
@@ -39,25 +39,8 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
 
   return (
     <div className="space-y-6">
-      {/* Imagen procesada */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            Imagen Procesada
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <img
-            src={processedImage}
-            alt="Imagen procesada"
-            className="w-full rounded-lg shadow-lg"
-          />
-        </CardContent>
-      </Card>
-
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Main Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tortuosidad Promedio</CardTitle>
@@ -66,7 +49,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           <CardContent>
             <div className="text-2xl font-bold">{data.avg_tortuosity.toFixed(3)}</div>
             <p className="text-xs text-muted-foreground">
-              Valor global de tortuosidad
+              Valor global
             </p>
           </CardContent>
         </Card>
@@ -79,14 +62,14 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           <CardContent>
             <div className="text-2xl font-bold">{data.num_glands}</div>
             <p className="text-xs text-muted-foreground">
-              Total de glándulas identificadas
+              Total identificadas
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rango de Valores</CardTitle>
+            <CardTitle className="text-sm font-medium">Rango Mín-Máx</CardTitle>
             <Info className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -98,43 +81,80 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Estado General</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.avg_tortuosity <= 0.1 ? "Normal" : data.avg_tortuosity <= 0.2 ? "Moderado" : "Alto"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {getInterpretation(data.avg_tortuosity).text}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Tabla de tortuosidad individual */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tortuosidad por Glándula Individual</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID Glándula</TableHead>
-                <TableHead>Valor de Tortuosidad</TableHead>
-                <TableHead>Interpretación</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.individual_tortuosities.map((value, index) => {
-                const interpretation = getInterpretation(value);
-                return (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">G{index + 1}</TableCell>
-                    <TableCell>{value.toFixed(3)}</TableCell>
-                    <TableCell>
-                      <Badge className={interpretation.color}>
-                        {interpretation.text}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Image and Table Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Processed Image */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Imagen Procesada
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <img
+              src={processedImage}
+              alt="Imagen procesada"
+              className="w-full rounded-lg shadow-lg"
+            />
+          </CardContent>
+        </Card>
 
-      {/* Gráfico de barras */}
+        {/* Individual Tortuosity Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tortuosidad por Glándula</CardTitle>
+          </CardHeader>
+          <CardContent>
+                         <div className="max-h-96 overflow-y-auto custom-scrollbar">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.individual_tortuosities.map((value, index) => {
+                    const interpretation = getInterpretation(value);
+                    return (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">G{index + 1}</TableCell>
+                        <TableCell>{value.toFixed(3)}</TableCell>
+                        <TableCell>
+                          <Badge className={interpretation.color}>
+                            {interpretation.text}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Visualización Gráfica de Tortuosidad</CardTitle>
@@ -165,31 +185,30 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
         </CardContent>
       </Card>
 
-      {/* Información detallada */}
+      {/* Interpretation Guide */}
       <Card>
         <CardHeader>
-          <CardTitle>Información Detallada de Tortuosidad</CardTitle>
+          <CardTitle>Guía de Interpretación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2">¿Qué es la Tortuosidad?</h4>
-            <p className="text-sm text-muted-foreground">
-              La tortuosidad es una medida de cuán retorcida o curvada está una glándula de Meibomio. 
-              Un valor más alto indica una glándula más tortuosa, lo que puede ser un indicador de 
-              disfunción de las glándulas de Meibomio (MGD).
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">0.0 - 0.1</div>
+              <div className="text-sm text-green-700 dark:text-green-300">Tortuosidad Baja</div>
+              <div className="text-xs text-green-600 dark:text-green-400">Normal</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">0.1 - 0.2</div>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300">Tortuosidad Moderada</div>
+              <div className="text-xs text-yellow-600 dark:text-yellow-400">Cambios Iniciales</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">&gt; 0.2</div>
+              <div className="text-sm text-red-700 dark:text-red-300">Tortuosidad Alta</div>
+              <div className="text-xs text-red-600 dark:text-red-400">Sugestivo de MGD</div>
+            </div>
           </div>
-          
-          <div>
-            <h4 className="font-semibold mb-2">Interpretación de los valores (referencial):</h4>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              <li><strong>0.0 - 0.1:</strong> Tortuosidad baja (generalmente normal)</li>
-              <li><strong>0.1 - 0.2:</strong> Tortuosidad moderada (puede indicar cambios iniciales)</li>
-              <li><strong>&gt; 0.2:</strong> Tortuosidad alta (sugestivo de MGD, requiere correlación clínica)</li>
-            </ul>
-          </div>
-          
-          <p className="text-xs text-muted-foreground italic">
+          <p className="text-xs text-muted-foreground italic text-center">
             Nota: Estos rangos son aproximados y la interpretación final debe ser realizada por un especialista.
           </p>
         </CardContent>
