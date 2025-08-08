@@ -192,6 +192,89 @@ def calculate_gland_tortuosity(mask):
 # ------------------------------------------------------
 # Función de visualización y combinación final
 # ------------------------------------------------------
+def show_combined_result_with_models(image_path, maskrcnn_model, unet_model, device):
+    # Usar modelos ya cargados (no cargar de nuevo)
+    
+    # Predicción de la máscara de instancias (glándulas de Meibomio)
+    pred_instance = predict_maskrcnn_model(maskrcnn_model, image_path, device)
+
+    # Predicción de la máscara del contorno del párpado (Tarsus)
+    mask_tarsus = predict_unet_model(unet_model, image_path, device)
+
+    # Redimensionar la máscara de Tarsus a las dimensiones de la máscara de instancias
+    mask_tarsus_resized = F.interpolate(mask_tarsus.unsqueeze(0), size=pred_instance.shape, mode='bilinear', align_corners=True)
+    mask_tarsus_resized = mask_tarsus_resized.squeeze(0).cpu().numpy()
+
+    # Aquí, aún tenemos forma (1, H, W); eliminamos la dimensión extra:
+    mask_tarsus_resized = np.squeeze(mask_tarsus_resized, axis=0)
+
+    # Aplicar la máscara de Tarsus a la máscara de instancias (conservar solo las instancias dentro del contorno)
+    pred_instance_cleaned = pred_instance * mask_tarsus_resized.astype(np.int32)
+    pred_instance_cleaned = np.squeeze(pred_instance_cleaned)
+
+    # Crear imagen de instancias: asignar un color aleatorio único a cada instancia
+    colored_instance_image = np.zeros((pred_instance_cleaned.shape[0], pred_instance_cleaned.shape[1], 3), dtype=np.uint8)
+
+    # Calcular la tortuosidad para cada glándula
+    gland_tortuosities = []
+    gland_ids = np.unique(pred_instance_cleaned)
+    gland_ids = gland_ids[gland_ids > 0]  # Excluir el fondo (0)
+
+    for i in gland_ids:
+        # Crear una máscara para esta glándula específica
+        gland_mask = (pred_instance_cleaned == i).astype(np.uint8)
+
+        # Calcular la tortuosidad
+        tortuosity = calculate_gland_tortuosity(gland_mask)
+        gland_tortuosities.append(tortuosity)
+
+        # Asignar color basado en la tortuosidad (opcional: usar un mapa de colores)
+        color = generate_random_color()
+        colored_instance_image[pred_instance_cleaned == i] = color
+
+    # Calcular la tortuosidad promedio
+    avg_tortuosity = np.mean(gland_tortuosities) if gland_tortuosities else 0.0
+
+    # Abrir la imagen original
+    image = Image.open(image_path).convert("RGB")
+    image_np = np.array(image)
+
+    # Superponer las instancias (colores sólidos) sobre la imagen original
+    result_image = image_np.copy()
+    mask_inst = (colored_instance_image.sum(axis=-1) > 0)
+    result_image[mask_inst] = colored_instance_image[mask_inst]
+
+    # Redimensionar la máscara de Tarsus para que tenga el mismo tamaño que la imagen original para su visualización
+    tarsus_mask_overlay = F.interpolate(mask_tarsus.unsqueeze(0), size=(image_np.shape[0], image_np.shape[1]), mode='bilinear', align_corners=True)
+    tarsus_mask_overlay = tarsus_mask_overlay.squeeze(0).cpu().numpy()
+    tarsus_mask_overlay = np.squeeze(tarsus_mask_overlay, axis=0)  # Eliminar la dimensión extra
+    tarsus_mask_overlay = (tarsus_mask_overlay > 0.5).astype(np.uint8)
+
+    # Visualizar la imagen final: instancias en colores únicos y el contorno del párpado con transparencia
+    plt.figure(figsize=(10, 10))
+    plt.imshow(result_image)
+    plt.imshow(tarsus_mask_overlay, cmap="jet", alpha=0.5)  # Overlay del contorno
+
+    # Añadir información de tortuosidad al título
+    plt.title(f"Instancias (colores únicos) y contorno del párpado\nTortuosidad promedio: {avg_tortuosity:.3f}")
+    plt.axis("off")
+    # plt.show() # Commented out for Streamlit integration
+
+    # Return the final image array and tortuosity data
+    import io
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
+    img_arr = Image.open(buf)
+    plt.close() # Close the plot to free memory
+
+    # Return both the image and tortuosity data
+    return img_arr, {
+        'avg_tortuosity': avg_tortuosity,
+        'individual_tortuosities': gland_tortuosities,
+        'num_glands': len(gland_ids)
+    }
+
 def show_combined_result(image_path, maskrcnn_model_path, unet_model_path, device):
     # Cargar modelos
     maskrcnn_model = load_maskrcnn_model(maskrcnn_model_path)

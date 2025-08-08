@@ -259,6 +259,21 @@
             color: #e0e0e0;
         }
 
+        /* Enhanced chart container */
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin-top: 2rem;
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-container h3 {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -335,7 +350,9 @@
             <div class="results-grid" id="resultsGrid"></div>
             <div class="chart-container">
                 <h3>📈 Visualización Gráfica de Tortuosidad</h3>
-                <canvas id="tortuosityChart" width="400" height="200"></canvas>
+                <div style="position: relative; height: 400px; width: 100%;">
+                    <canvas id="tortuosityChart"></canvas>
+                </div>
                 <p style="text-align: center; margin-top: 1rem; color: #a0a0a0; font-size: 0.9rem;">
                     Gráfico comparativo de la tortuosidad para cada glándula identificada. Valores más altos indican mayor curvatura.
                 </p>
@@ -343,9 +360,13 @@
         </div>
     </div>
 
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
         let selectedFile = null;
         const API_BASE_URL = 'http://localhost:8000';
+        let tortuosityChart = null; // Global chart instance
 
         // File input handling
         document.getElementById('fileInput').addEventListener('change', handleFileSelect);
@@ -557,37 +578,130 @@
 
         function createTortuosityChart(tortuosities) {
             const canvas = document.getElementById('tortuosityChart');
-            const ctx = canvas.getContext('2d');
             
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Destroy previous chart if it exists
+            if (tortuosityChart) {
+                tortuosityChart.destroy();
+            }
             
-            const maxValue = Math.max(...tortuosities);
-            const barWidth = canvas.width / tortuosities.length;
-            const maxBarHeight = canvas.height - 40;
+            // Create labels for glands
+            const labels = tortuosities.map((_, index) => `G${index + 1}`);
             
-            // Draw bars
-            tortuosities.forEach((value, index) => {
-                const barHeight = (value / maxValue) * maxBarHeight;
-                const x = index * barWidth;
-                const y = canvas.height - barHeight - 20;
+            // Create colors based on tortuosity values
+            const colors = tortuosities.map(value => {
+                if (value <= 0.1) return '#10b981'; // Green for low
+                if (value <= 0.2) return '#f59e0b'; // Yellow for moderate
+                return '#ef4444'; // Red for high
+            });
+            
+            // Create gradient backgrounds
+            const backgrounds = tortuosities.map((value, index) => {
+                const ctx = canvas.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
                 
-                // Gradient
-                const gradient = ctx.createLinearGradient(x, y, x, canvas.height - 20);
-                gradient.addColorStop(0, '#3b82f6');
-                gradient.addColorStop(1, '#8b5cf6');
+                if (value <= 0.1) {
+                    gradient.addColorStop(0, '#10b981');
+                    gradient.addColorStop(1, '#059669');
+                } else if (value <= 0.2) {
+                    gradient.addColorStop(0, '#f59e0b');
+                    gradient.addColorStop(1, '#d97706');
+                } else {
+                    gradient.addColorStop(0, '#ef4444');
+                    gradient.addColorStop(1, '#dc2626');
+                }
                 
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
-                
-                // Value label
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(value.toFixed(3), x + barWidth/2, y - 5);
-                
-                // Gland label
-                ctx.fillText(`G${index + 1}`, x + barWidth/2, canvas.height - 5);
+                return gradient;
+            });
+            
+            tortuosityChart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Tortuosidad',
+                        data: tortuosities,
+                        backgroundColor: backgrounds,
+                        borderColor: colors,
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e0e0e0',
+                            borderColor: '#3b82f6',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `Tortuosidad: ${context.parsed.y.toFixed(3)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#e0e0e0',
+                                font: {
+                                    size: 12
+                                },
+                                callback: function(value) {
+                                    return value.toFixed(3);
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Valor de Tortuosidad',
+                                color: '#ffffff',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#e0e0e0',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Glándulas Identificadas',
+                                color: '#ffffff',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
             });
         }
 

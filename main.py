@@ -20,6 +20,7 @@ from Tortuosity import (
     predict_maskrcnn_model,
     predict_unet_model,
     show_combined_result,
+    show_combined_result_with_models,
     resize_to_previous_multiple_of_32,
     device
 )
@@ -148,11 +149,11 @@ async def analyze_image(
         if maskrcnn_model is None or unet_model is None:
             raise HTTPException(status_code=500, detail="Models not loaded")
         
-        # Perform analysis
-        result_image, tortuosity_data = show_combined_result(
+        # Perform analysis using pre-loaded models
+        result_image, tortuosity_data = show_combined_result_with_models(
             temp_file_path, 
-            MASK_RCNN_MODEL_PATH, 
-            UNET_MODEL_PATH, 
+            maskrcnn_model, 
+            unet_model, 
             device
         )
         
