@@ -7,4 +7,5 @@ scikit-image==0.21.0
 # Standard versions compatible with Python 3.9
 torch==2.0.1
 torchvision==0.15.2
-opencv-python==4.8.1.78 
+opencv-python==4.8.1.78
+matplotlib==3.7.2 
