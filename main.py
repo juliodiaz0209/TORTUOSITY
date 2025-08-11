@@ -12,6 +12,8 @@ import io
 from PIL import Image
 import json
 from typing import Optional, Dict, Any
+import numpy as np
+from skimage import exposure, img_as_ubyte, img_as_float32
 
 # Import the tortuosity analysis functions
 from Tortuosity import (
@@ -59,6 +61,41 @@ UNET_MODEL_PATH = "final_model_tarsus_improved.pth"
 # Global model instances (loaded once at startup)
 maskrcnn_model = None
 unet_model = None
+
+def clahe_like_imagej(img, block_radius=63, bins=255, slope=3.0, convert_to_gray=True):
+    """
+    Replica el CLAHE de ImageJ con un error ≤ 1 nivel de gris.
+    img : uint8 ó RGB uint8
+    convert_to_gray: Si True, convierte RGB a gris antes de aplicar CLAHE
+    """
+    tile        = 2*block_radius + 1
+    clip_limit  = slope / bins      # mapeo exacto
+    nbins       = bins + 1
+
+    if img.ndim == 3 and convert_to_gray:
+        # Convertir RGB a gris usando la fórmula estándar
+        gray_img = np.dot(img[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
+        out = exposure.equalize_adapthist(gray_img,
+                                          kernel_size=tile,
+                                          nbins=nbins,
+                                          clip_limit=clip_limit)
+        return img_as_ubyte(out)
+
+    elif img.ndim == 2:                        # ya es gris
+        out = exposure.equalize_adapthist(img,
+                                          kernel_size=tile,
+                                          nbins=nbins,
+                                          clip_limit=clip_limit)
+        return img_as_ubyte(out)
+
+    elif img.ndim == 3 and not convert_to_gray:  # color: trata cada canal
+        ch = [clahe_like_imagej(img[..., c],
+                                block_radius, bins, slope, convert_to_gray=False)
+              for c in range(img.shape[2])]
+        return np.stack(ch, axis=-1)
+
+    else:
+        raise ValueError("Solo imágenes 2D o RGB.")
 
 @app.on_event("startup")
 async def startup_event():
@@ -197,6 +234,90 @@ async def analyze_image(
         raise HTTPException(
             status_code=500, 
             detail=f"Analysis failed: {str(e)}"
+        )
+
+@app.post("/apply-clahe")
+async def apply_clahe_filter(
+    file: UploadFile = File(...),
+    block_radius: int = 63,
+    bins: int = 255,
+    slope: float = 3.0,
+    convert_to_gray: bool = True
+):
+    """
+    Apply CLAHE filter to an uploaded image
+    
+    Args:
+        file: Image file (jpg, jpeg, png)
+        block_radius: Block radius for CLAHE (default: 63)
+        bins: Number of bins for histogram (default: 255)
+        slope: Slope for clip limit (default: 3.0)
+        
+    Returns:
+        JSON with processed image as base64
+    """
+    
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Validate file extension
+    allowed_extensions = {".jpg", ".jpeg", ".png"}
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File extension {file_extension} not allowed. Use: {allowed_extensions}"
+        )
+    
+    try:
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            # Copy uploaded file to temporary file
+            shutil.copyfileobj(file.file, temp_file)
+            temp_file_path = temp_file.name
+        
+        # Load image and convert to numpy array
+        image = Image.open(temp_file_path).convert("RGB")
+        img_array = np.array(image)
+        
+        # Apply CLAHE filter
+        clahe_img = clahe_like_imagej(img_array, block_radius, bins, slope, convert_to_gray)
+        
+        # Convert back to PIL Image
+        processed_image = Image.fromarray(clahe_img)
+        
+        # Convert result image to base64
+        img_buffer = io.BytesIO()
+        processed_image.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+        
+        # Clean up temporary file
+        os.unlink(temp_file_path)
+        
+        # Return results
+        return {
+            "success": True,
+            "message": "CLAHE filter applied successfully",
+            "data": {
+                "processed_image": f"data:image/png;base64,{img_base64}",
+                "parameters": {
+                    "block_radius": block_radius,
+                    "bins": bins,
+                    "slope": slope,
+                    "convert_to_gray": convert_to_gray
+                }
+            }
+        }
+        
+    except Exception as e:
+        # Clean up temporary file if it exists
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"CLAHE processing failed: {str(e)}"
         )
 
 @app.get("/info")

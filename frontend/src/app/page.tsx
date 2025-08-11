@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { UploadZone } from "@/components/upload-zone";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ResultsDisplay } from "@/components/results-display";
 import { 
   Eye, 
@@ -18,7 +20,8 @@ import {
   Settings,
   Home,
   FileText,
-  Activity
+  Activity,
+  Sparkles
 } from "lucide-react";
 
 interface AnalysisResult {
@@ -46,11 +49,20 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'upload' | 'results' | 'info'>('upload');
+  const [claheImage, setClaheImage] = useState<string | null>(null);
+  const [isApplyingClahe, setIsApplyingClahe] = useState(false);
+  const [convertToGray, setConvertToGray] = useState(true);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setError(null);
     setResults(null);
+    setClaheImage(null);
+  };
+
+  const handleConvertToGrayChange = (checked: boolean) => {
+    setConvertToGray(checked);
+    setClaheImage(null); // Limpiar imagen anterior cuando se cambia la opción
   };
 
   const analyzeImage = async () => {
@@ -85,8 +97,8 @@ export default function DashboardPage() {
         
         if (contentType && contentType.includes("application/json")) {
           try {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || "Error en el análisis");
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error en el análisis");
           } catch {
             throw new Error(`Error del servidor: ${response.status}`);
           }
@@ -109,6 +121,63 @@ export default function DashboardPage() {
     } finally {
       setIsAnalyzing(false);
       clearInterval(progressInterval);
+    }
+  };
+
+  const applyClaheFilter = async () => {
+    if (!selectedFile) return;
+
+    setIsApplyingClahe(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("convert_to_gray", convertToGray.toString());
+
+      const response = await fetch("/api/apply-clahe", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Error applying CLAHE filter");
+          } catch {
+            throw new Error(`Error del servidor: ${response.status}`);
+          }
+        } else {
+          try {
+            const errorText = await response.text();
+            throw new Error(`Error del servidor: ${response.status} - ${errorText.substring(0, 100)}`);
+          } catch {
+            throw new Error(`Error del servidor: ${response.status}`);
+          }
+        }
+      }
+
+      const result = await response.json();
+      setClaheImage(result.data.processed_image);
+
+      // Replace the selected file with the CLAHE-processed image so the model uses it
+      try {
+        const dataUrl = result.data.processed_image as string;
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
+        const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
+        setSelectedFile(processedFile);
+        // Clear previous results if any
+        setResults(null);
+      } catch {}
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIsApplyingClahe(false);
     }
   };
 
@@ -210,24 +279,64 @@ export default function DashboardPage() {
                 <UploadZone onFileSelect={handleFileSelect} selectedFile={selectedFile} />
                 
                 {selectedFile && (
-                  <div className="mt-4 flex justify-center">
-                    <Button 
-                      onClick={analyzeImage} 
-                      disabled={isAnalyzing}
-                      className="w-full md:w-auto"
-                    >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analizando...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="mr-2 h-4 w-4" />
-                          Analizar Imagen
-                        </>
-                      )}
-                    </Button>
+                  <div className="mt-4 flex flex-col gap-4">
+                    {/* CLAHE Options */}
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="convert-to-gray"
+                          checked={convertToGray}
+                          onCheckedChange={handleConvertToGrayChange}
+                        />
+                        <Label htmlFor="convert-to-gray" className="text-sm">
+                          {convertToGray ? "Procesar en escala de grises" : "Procesar en color"}
+                        </Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        {convertToGray 
+                          ? "Recomendado para imágenes con filtros de color o biomédicas"
+                          : "Mantiene la información de color original"
+                        }
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-2 justify-center">
+                      <Button 
+                        onClick={analyzeImage} 
+                        disabled={isAnalyzing}
+                        className="flex-1"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Analizando...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="mr-2 h-4 w-4" />
+                            Analizar Imagen
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={applyClaheFilter} 
+                        disabled={isApplyingClahe}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        {isApplyingClahe ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Aplicando...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Aplicar CLAHE
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -247,6 +356,28 @@ export default function DashboardPage() {
                       Cargando modelos y analizando glándulas...
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* CLAHE Result */}
+            {claheImage && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    Imagen con CLAHE Aplicado
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <img
+                    src={claheImage}
+                    alt="Imagen con filtro CLAHE"
+                    className="w-full rounded-lg shadow-lg"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2 text-center">
+                    Filtro CLAHE aplicado para mejorar el contraste local
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -296,48 +427,48 @@ export default function DashboardPage() {
           <div className="space-y-6 animate-fade-in">
             {/* Methodology */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
                   Metodología
-                </CardTitle>
-              </CardHeader>
+            </CardTitle>
+          </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-green-600">Fórmula de Tortuosidad</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Tortuosidad = (Perímetro / (2 × Altura del rectángulo mínimo externo)) - 1
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-blue-600">Interpretación</h4>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p><strong>0.0 - 0.1:</strong> Tortuosidad baja (normal)</p>
-                      <p><strong>0.1 - 0.2:</strong> Tortuosidad moderada</p>
-                      <p><strong>&gt; 0.2:</strong> Tortuosidad alta (sugestivo de MGD)</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-purple-600">Modelos Utilizados</h4>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p><strong>Mask R-CNN:</strong> Detección de glándulas individuales</p>
-                      <p><strong>UNet:</strong> Segmentación del contorno del párpado</p>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-green-600">Fórmula de Tortuosidad</h4>
+                <p className="text-sm text-muted-foreground">
+                  Tortuosidad = (Perímetro / (2 × Altura del rectángulo mínimo externo)) - 1
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-blue-600">Interpretación</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p><strong>0.0 - 0.1:</strong> Tortuosidad baja (normal)</p>
+                  <p><strong>0.1 - 0.2:</strong> Tortuosidad moderada</p>
+                  <p><strong>&gt; 0.2:</strong> Tortuosidad alta (sugestivo de MGD)</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-purple-600">Modelos Utilizados</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p><strong>Mask R-CNN:</strong> Detección de glándulas individuales</p>
+                  <p><strong>UNet:</strong> Segmentación del contorno del párpado</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
             {/* System Info */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
                   Información del Sistema
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <h4 className="font-semibold">Tecnologías</h4>
@@ -356,10 +487,10 @@ export default function DashboardPage() {
                       <li>• Métricas detalladas</li>
                       <li>• Interfaz responsiva</li>
                     </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              </div>
+            </CardContent>
+          </Card>
           </div>
         )}
       </div>

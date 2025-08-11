@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -21,6 +22,7 @@
   --color-input: oklch(0.922 0 0);
   --color-ring: oklch(0.708 0 0);
   --radius: 0.5rem;
+  --font-sans: "Inter", system-ui, sans-serif;
 }
 
 @theme dark {
@@ -43,6 +45,13 @@
   --color-border: oklch(1 0 0 / 10%);
   --color-input: oklch(1 0 0 / 15%);
   --color-ring: oklch(0.556 0 0);
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* Global styles */
+* {
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: -0.04em;
 }
 
 /* Custom scrollbar */
