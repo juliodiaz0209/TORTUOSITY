@@ -153,6 +153,9 @@ dmypy.json
 *.npy
 *.npz
 
+# But keep important text files
+!requirements.txt
+
 # IDE specific
 .vscode/
 .idea/
