@@ -157,6 +157,9 @@ dmypy.json
 # But keep frontend JSON files
 !frontend/*.json
 !frontend/**/*.json
+# But keep frontend lib directory
+!frontend/src/lib/
+!frontend/src/lib/**
 
 # IDE specific
 .vscode/
