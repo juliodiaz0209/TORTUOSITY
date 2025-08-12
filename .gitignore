@@ -154,6 +154,9 @@ dmypy.json
 
 # But keep important text files
 !requirements.txt
+# But keep frontend JSON files
+!frontend/*.json
+!frontend/**/*.json
 
 # IDE specific
 .vscode/
