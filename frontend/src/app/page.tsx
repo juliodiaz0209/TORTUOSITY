@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const [isApplyingClahe, setIsApplyingClahe] = useState(false);
   const [convertToGray, setConvertToGray] = useState(true);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = (file: File | null) => {
     setSelectedFile(file);
     setError(null);
     setResults(null);
