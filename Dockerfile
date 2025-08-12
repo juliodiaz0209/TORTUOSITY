@@ -3,7 +3,7 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including git-lfs
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     curl \
+    git \
+    git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -22,6 +24,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Download LFS files if any pth files are LFS pointers
+RUN if [ -f ".gitattributes" ] && grep -q "\.pth.*lfs" .gitattributes; then \
+        echo "Detected LFS configuration, pulling LFS files..."; \
+        git lfs install && git lfs pull || echo "LFS pull failed, proceeding..."; \
+    fi
 
 # Create necessary directories
 RUN mkdir -p temp results static
