@@ -16,22 +16,58 @@ device = torch.device("cpu")  # Force CPU for Cloud Run compatibility
 # ------------------------------------------------------
 # Función para cargar el modelo Mask R-CNN y sus pesos
 # ------------------------------------------------------
-def load_maskrcnn_model(model_path="final_model.pth"):
-    # Nota: el parámetro 'pretrained' está deprecado, se recomienda usar 'weights'
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=False)
-    num_classes = 2  # fondo y glándula
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+def load_maskrcnn_model(model_path="final_model.pth", device=device):
+    try:
+        # Use modern PyTorch syntax without pretrained parameter
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights=None)
+        num_classes = 2  # fondo y glándula
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-    hidden_layer = 256
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
+        in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+        hidden_layer = 256
+        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
 
-    state_dict = torch.load(model_path, map_location=device)
-    model.load_state_dict(state_dict)
-    model.to(device)
-    model.eval()
-    return model
+        # Add better error handling for model loading
+        print(f"Loading model from: {model_path}")
+        
+        # Try different loading strategies for compatibility
+        try:
+            # First try: standard loading
+            state_dict = torch.load(model_path, map_location=device)
+        except Exception as e1:
+            print(f"Standard loading failed: {e1}")
+            try:
+                # Second try: with pickle protocol 5 (for newer PyTorch versions)
+                state_dict = torch.load(model_path, map_location=device, pickle_module=torch._utils._rebuild_tensor_v2)
+            except Exception as e2:
+                print(f"Pickle protocol 5 loading failed: {e2}")
+                try:
+                    # Third try: with weights_only (for newer PyTorch versions)
+                    state_dict = torch.load(model_path, map_location=device, weights_only=True)
+                except Exception as e3:
+                    print(f"Weights-only loading failed: {e3}")
+                    try:
+                        # Fourth try: with different pickle protocol
+                        import pickle
+                        state_dict = torch.load(model_path, map_location=device, pickle_module=pickle)
+                    except Exception as e4:
+                        print(f"Pickle loading failed: {e4}")
+                        # Last resort: try with different map_location
+                        state_dict = torch.load(model_path, map_location='cpu')
+        
+        try:
+            model.load_state_dict(state_dict)
+            model.to(device)
+            model.eval()
+            print("Mask R-CNN model loaded successfully")
+            return model
+        except Exception as e:
+            print(f"Error setting model state: {e}")
+            raise e
+    except Exception as e:
+        print(f"Error loading Mask R-CNN model: {e}")
+        raise e
 
 # ------------------------------------------------------
 # Definición del modelo UNet con encoder preentrenado
@@ -39,7 +75,7 @@ def load_maskrcnn_model(model_path="final_model.pth"):
 class UNetWithPretrainedEncoder(torch.nn.Module):
     def __init__(self, in_channels=3, out_channels=1):
         super(UNetWithPretrainedEncoder, self).__init__()
-        self.encoder = models.resnet34(pretrained=False)
+        self.encoder = models.resnet34(weights=None)
         self.encoder_layers = list(self.encoder.children())
         self.layer0 = torch.nn.Sequential(*self.encoder_layers[:3])
         self.layer1 = torch.nn.Sequential(*self.encoder_layers[3:5])
@@ -98,12 +134,47 @@ class UNetWithPretrainedEncoder(torch.nn.Module):
 # Funciones para cargar y predecir con UNet
 # ------------------------------------------------------
 def load_unet_model(model_path, device):
-    model = UNetWithPretrainedEncoder(in_channels=3, out_channels=1)
-    state_dict = torch.load(model_path, map_location=device)
-    model.load_state_dict(state_dict)
-    model.to(device)
-    model.eval()
-    return model
+    try:
+        model = UNetWithPretrainedEncoder(in_channels=3, out_channels=1)
+        print(f"Loading UNet model from: {model_path}")
+        
+        # Try different loading strategies for compatibility
+        try:
+            # First try: standard loading
+            state_dict = torch.load(model_path, map_location=device)
+        except Exception as e1:
+            print(f"Standard loading failed: {e1}")
+            try:
+                # Second try: with pickle protocol 5 (for newer PyTorch versions)
+                state_dict = torch.load(model_path, map_location=device, pickle_module=torch._utils._rebuild_tensor_v2)
+            except Exception as e2:
+                print(f"Pickle protocol 5 loading failed: {e2}")
+                try:
+                    # Third try: with weights_only (for newer PyTorch versions)
+                    state_dict = torch.load(model_path, map_location=device, weights_only=True)
+                except Exception as e3:
+                    print(f"Weights-only loading failed: {e3}")
+                    try:
+                        # Fourth try: with different pickle protocol
+                        import pickle
+                        state_dict = torch.load(model_path, map_location=device, pickle_module=pickle)
+                    except Exception as e4:
+                        print(f"Pickle loading failed: {e4}")
+                        # Last resort: try with different map_location
+                        state_dict = torch.load(model_path, map_location='cpu')
+        
+        try:
+            model.load_state_dict(state_dict)
+            model.to(device)
+            model.eval()
+            print("UNet model loaded successfully")
+            return model
+        except Exception as e:
+            print(f"Error setting model state: {e}")
+            raise e
+    except Exception as e:
+        print(f"Error loading UNet model: {e}")
+        raise e
 
 def predict_unet_model(model, image_path, device):
     image = Image.open(image_path).convert("RGB")

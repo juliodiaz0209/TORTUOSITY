@@ -54,13 +54,42 @@ STATIC_DIR.mkdir(exist_ok=True)
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Model paths
+# Model paths - with fallbacks
 MASK_RCNN_MODEL_PATH = "final_model (11).pth"
 UNET_MODEL_PATH = "final_model_tarsus_improved.pth"
+
+# Fallback model paths
+FALLBACK_MASK_RCNN_PATHS = [
+    "final_model (11).pth",
+    "final_model_tarsus.pth",
+    "final_model.pth"
+]
+
+FALLBACK_UNET_PATHS = [
+    "final_model_tarsus_improved.pth",
+    "final_model_tarsus.pth"
+]
 
 # Global model instances (loaded once at startup)
 maskrcnn_model = None
 unet_model = None
+
+def try_load_model_with_fallbacks(load_function, model_paths, model_name):
+    """Try to load a model from multiple possible paths"""
+    for path in model_paths:
+        try:
+            print(f"Trying to load {model_name} from: {path}")
+            if os.path.exists(path):
+                model = load_function(path)
+                print(f"Successfully loaded {model_name} from: {path}")
+                return model
+            else:
+                print(f"Model file not found: {path}")
+        except Exception as e:
+            print(f"Failed to load {model_name} from {path}: {e}")
+            continue
+    
+    raise Exception(f"Could not load {model_name} from any of the provided paths: {model_paths}")
 
 def clahe_like_imagej(img, block_radius=63, bins=255, slope=3.0, convert_to_gray=True):
     """
@@ -102,14 +131,88 @@ async def startup_event():
     """Load models on startup"""
     global maskrcnn_model, unet_model
     try:
+        print("Starting model loading process...")
+        print(f"Mask R-CNN model path: {MASK_RCNN_MODEL_PATH}")
+        print(f"UNet model path: {UNET_MODEL_PATH}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Files in current directory: {os.listdir('.')}")
+        
+        # Check if model files exist
+        for path in FALLBACK_MASK_RCNN_PATHS + FALLBACK_UNET_PATHS:
+            if os.path.exists(path):
+                size = os.path.getsize(path)
+                print(f"✓ Model file exists: {path} ({size:,} bytes)")
+                # Try to read first few bytes to check if file is readable
+                try:
+                    with open(path, 'rb') as f:
+                        header = f.read(16)
+                        print(f"  File header (hex): {header.hex()}")
+                except Exception as e:
+                    print(f"  Warning: Could not read file header: {e}")
+            else:
+                print(f"✗ Model file missing: {path}")
+        
+        # Print system information
+        import platform
+        print(f"Python version: {platform.python_version()}")
+        print(f"Platform: {platform.platform()}")
+        print(f"Architecture: {platform.architecture()}")
+        
+        # Print PyTorch information
+        import torch
+        print(f"PyTorch version: {torch.__version__}")
+        print(f"CUDA available: {torch.cuda.is_available()}")
+        if torch.cuda.is_available():
+            print(f"CUDA version: {torch.version.cuda}")
+            print(f"GPU count: {torch.cuda.device_count()}")
+        
+        # Print memory information
+        import psutil
+        try:
+            memory = psutil.virtual_memory()
+            print(f"Memory: {memory.total / (1024**3):.1f} GB total, {memory.available / (1024**3):.1f} GB available")
+        except ImportError:
+            print("psutil not available for memory info")
+        
+        # Add a small delay to ensure system is ready
+        import asyncio
+        await asyncio.sleep(3)
+        
         print("Loading Mask R-CNN model...")
-        maskrcnn_model = load_maskrcnn_model(MASK_RCNN_MODEL_PATH)
+        try:
+            maskrcnn_model = try_load_model_with_fallbacks(lambda path: load_maskrcnn_model(path, device), FALLBACK_MASK_RCNN_PATHS, "Mask R-CNN")
+            print("✓ Mask R-CNN model loaded successfully")
+        except Exception as e:
+            print(f"✗ Failed to load Mask R-CNN model: {e}")
+            maskrcnn_model = None
+        
         print("Loading UNet model...")
-        unet_model = load_unet_model(UNET_MODEL_PATH, device)
-        print("Models loaded successfully!")
+        try:
+            unet_model = try_load_model_with_fallbacks(lambda path: load_unet_model(path, device), FALLBACK_UNET_PATHS, "UNet")
+            print("✓ UNet model loaded successfully")
+        except Exception as e:
+            print(f"✗ Failed to load UNet model: {e}")
+            unet_model = None
+        
+        if maskrcnn_model is not None and unet_model is not None:
+            print("✓ All models loaded successfully!")
+        else:
+            print("⚠ Some models failed to load, but continuing startup...")
     except Exception as e:
         print(f"Error loading models: {e}")
-        raise e
+        import traceback
+        traceback.print_exc()
+        # Don't raise the error immediately, let the app start and handle it gracefully
+        print("Warning: Models failed to load, but continuing startup...")
+        maskrcnn_model = None
+        unet_model = None
+    
+    # Final status check
+    if maskrcnn_model is not None and unet_model is not None:
+        print("🎉 Application startup completed successfully with all models loaded!")
+    else:
+        print("⚠ Application startup completed with degraded functionality - some models failed to load")
+        print("   The application will continue to run but may not be able to process images")
 
 @app.get("/")
 async def root():
@@ -126,6 +229,7 @@ async def api_info():
             "/": "Main interface",
             "/api": "API information",
             "/health": "Health check",
+            "/models/status": "Detailed model status",
             "/analyze": "Analyze image for tortuosity",
             "/docs": "API documentation"
         }
@@ -134,13 +238,38 @@ async def api_info():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    models_loaded = maskrcnn_model is not None and unet_model is not None
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if models_loaded else "degraded",
         "models_loaded": {
             "maskrcnn": maskrcnn_model is not None,
             "unet": unet_model is not None
         },
-        "device": str(device)
+        "device": str(device),
+        "message": "Models loaded successfully" if models_loaded else "Some models failed to load"
+    }
+
+@app.get("/models/status")
+async def model_status():
+    """Detailed model status endpoint"""
+    return {
+        "models": {
+            "maskrcnn": {
+                "status": "loaded" if maskrcnn_model is not None else "failed",
+                "path": MASK_RCNN_MODEL_PATH,
+                "fallback_paths": FALLBACK_MASK_RCNN_PATHS
+            },
+            "unet": {
+                "status": "loaded" if unet_model is not None else "failed",
+                "path": UNET_MODEL_PATH,
+                "fallback_paths": FALLBACK_UNET_PATHS
+            }
+        },
+        "device": str(device),
+        "working_directory": os.getcwd(),
+        "available_files": os.listdir('.'),
+        "timestamp": __import__('datetime').datetime.now().isoformat()
     }
 
 @app.post("/analyze")
@@ -184,7 +313,19 @@ async def analyze_image(
         
         # Check if models are loaded
         if maskrcnn_model is None or unet_model is None:
-            raise HTTPException(status_code=500, detail="Models not loaded")
+            model_status = {
+                "maskrcnn": "loaded" if maskrcnn_model is not None else "failed",
+                "unet": "loaded" if unet_model is not None else "failed"
+            }
+            raise HTTPException(
+                status_code=503, 
+                detail={
+                    "error": "Service temporarily unavailable",
+                    "message": "AI models are not currently loaded. Please try again later.",
+                    "model_status": model_status,
+                    "suggestion": "Contact administrator if the problem persists."
+                }
+            )
         
         # Perform analysis using pre-loaded models
         result_image, tortuosity_data = show_combined_result_with_models(
