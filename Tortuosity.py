@@ -11,7 +11,7 @@ import random
 import cv2  # Needed for contour operations in tortuosity calculation
 
 # Definir dispositivo (GPU o CPU)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")  # Force CPU for Cloud Run compatibility
 
 # ------------------------------------------------------
 # Función para cargar el modelo Mask R-CNN y sus pesos
