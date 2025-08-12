@@ -38,12 +38,12 @@ npm run dev
 Crea un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https://tortuosity-backend-488176611125.us-central1.run.app
 ```
 
 ### Proxy API
 
-El frontend está configurado para redirigir las llamadas a `/api/*` hacia el backend FastAPI en `http://localhost:8000`.
+El frontend está configurado para redirigir las llamadas a `/api/*` hacia el backend FastAPI en `https://tortuosity-backend-488176611125.us-central1.run.app`.
 
 ## 🎨 Componentes Principales
 

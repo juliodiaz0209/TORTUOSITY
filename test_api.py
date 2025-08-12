@@ -8,7 +8,10 @@ import json
 import time
 from pathlib import Path
 
-API_BASE_URL = "http://localhost:8000"
+# Configure the API base URL
+# For production, use: "https://tortuosity-backend-488176611125.us-central1.run.app"
+# For local development, use: "http://localhost:8000"
+API_BASE_URL = "https://tortuosity-backend-488176611125.us-central1.run.app"
 
 def test_health():
     """Test health endpoint"""

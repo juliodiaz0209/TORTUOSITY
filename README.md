@@ -63,10 +63,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 Una vez iniciado el servidor, puedes acceder a:
 
-- **Interfaz Web**: http://localhost:8000
-- **Documentación API**: http://localhost:8000/docs
-- **Información API**: http://localhost:8000/api
-- **Health Check**: http://localhost:8000/health
+- **Interfaz Web**: https://tortuosity-backend-488176611125.us-central1.run.app
+- **Documentación API**: https://tortuosity-backend-488176611125.us-central1.run.app/docs
+- **Información API**: https://tortuosity-backend-488176611125.us-central1.run.app/api
+- **Health Check**: https://tortuosity-backend-488176611125.us-central1.run.app/health
 
 ## 📡 Endpoints de la API
 
@@ -95,7 +95,7 @@ Una vez iniciado el servidor, puedes acceder a:
 
 ### Usando curl
 ```bash
-curl -X POST "http://localhost:8000/analyze" \
+curl -X POST "https://tortuosity-backend-488176611125.us-central1.run.app/analyze" \
      -H "accept: application/json" \
      -H "Content-Type: multipart/form-data" \
      -F "file=@meibomio.jpg"
@@ -105,7 +105,7 @@ curl -X POST "http://localhost:8000/analyze" \
 ```python
 import requests
 
-url = "http://localhost:8000/analyze"
+url = "https://tortuosity-backend-488176611125.us-central1.run.app/analyze"
 files = {"file": open("meibomio.jpg", "rb")}
 response = requests.post(url, files=files)
 result = response.json()
