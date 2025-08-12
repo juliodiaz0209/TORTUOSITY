@@ -20,7 +20,6 @@ import {
   Settings,
   Home,
   FileText,
-  Activity,
   Sparkles
 } from "lucide-react";
 
@@ -182,7 +181,7 @@ export default function DashboardPage() {
   };
 
   const SidebarItem = ({ icon: Icon, label, active, onClick }: {
-    icon: any;
+    icon: React.ComponentType<{ className?: string }>;
     label: string;
     active: boolean;
     onClick: () => void;

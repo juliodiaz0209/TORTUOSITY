@@ -30,7 +30,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
   });
 
   const handleRemoveFile = () => {
-    onFileSelect(null as any);
+    onFileSelect(null);
   };
 
   return (
