@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface UploadZoneProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File | null) => void;
   selectedFile?: File | null;
 }
 
