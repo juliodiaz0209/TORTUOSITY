@@ -461,6 +461,91 @@ async def apply_clahe_filter(
             detail=f"CLAHE processing failed: {str(e)}"
         )
 
+@app.get("/debug/force-load-models")
+async def force_load_models():
+    """Debug endpoint to force model loading and get detailed error info"""
+    global maskrcnn_model, unet_model
+    debug_info = {
+        "timestamp": __import__('datetime').datetime.now().isoformat(),
+        "models": {},
+        "system_info": {},
+        "errors": []
+    }
+    
+    try:
+        # System info
+        import platform, psutil
+        memory = psutil.virtual_memory()
+        debug_info["system_info"] = {
+            "python_version": platform.python_version(),
+            "pytorch_version": device.__module__.split('.')[0] if hasattr(device, '__module__') else "unknown",
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_available_gb": round(memory.available / (1024**3), 2),
+            "memory_percent": memory.percent,
+            "device": str(device)
+        }
+        
+        # Try loading Mask R-CNN
+        debug_info["models"]["maskrcnn"] = {"status": "attempting"}
+        try:
+            import torch
+            debug_info["system_info"]["pytorch_version"] = torch.__version__
+            
+            for i, path in enumerate(FALLBACK_MASK_RCNN_PATHS):
+                if os.path.exists(path):
+                    size_mb = round(os.path.getsize(path) / (1024**2), 1)
+                    debug_info["models"]["maskrcnn"][f"attempt_{i+1}"] = {
+                        "path": path,
+                        "size_mb": size_mb,
+                        "status": "trying"
+                    }
+                    try:
+                        model = load_maskrcnn_model(path, device)
+                        maskrcnn_model = model
+                        debug_info["models"]["maskrcnn"][f"attempt_{i+1}"]["status"] = "SUCCESS"
+                        debug_info["models"]["maskrcnn"]["status"] = "loaded"
+                        break
+                    except Exception as e:
+                        debug_info["models"]["maskrcnn"][f"attempt_{i+1}"]["status"] = f"FAILED: {str(e)}"
+                        debug_info["errors"].append(f"Mask R-CNN {path}: {str(e)}")
+            else:
+                debug_info["models"]["maskrcnn"]["status"] = "failed_all_paths"
+        except Exception as e:
+            debug_info["models"]["maskrcnn"]["status"] = f"critical_error: {str(e)}"
+            debug_info["errors"].append(f"Mask R-CNN critical: {str(e)}")
+        
+        # Try loading UNet
+        debug_info["models"]["unet"] = {"status": "attempting"}
+        try:
+            for i, path in enumerate(FALLBACK_UNET_PATHS):
+                if os.path.exists(path):
+                    size_mb = round(os.path.getsize(path) / (1024**2), 1)
+                    debug_info["models"]["unet"][f"attempt_{i+1}"] = {
+                        "path": path,
+                        "size_mb": size_mb,
+                        "status": "trying"
+                    }
+                    try:
+                        model = load_unet_model(path, device)
+                        unet_model = model
+                        debug_info["models"]["unet"][f"attempt_{i+1}"]["status"] = "SUCCESS"
+                        debug_info["models"]["unet"]["status"] = "loaded"
+                        break
+                    except Exception as e:
+                        debug_info["models"]["unet"][f"attempt_{i+1}"]["status"] = f"FAILED: {str(e)}"
+                        debug_info["errors"].append(f"UNet {path}: {str(e)}")
+            else:
+                debug_info["models"]["unet"]["status"] = "failed_all_paths"
+        except Exception as e:
+            debug_info["models"]["unet"]["status"] = f"critical_error: {str(e)}"
+            debug_info["errors"].append(f"UNet critical: {str(e)}")
+            
+    except Exception as e:
+        debug_info["critical_error"] = str(e)
+        debug_info["errors"].append(f"Critical system error: {str(e)}")
+    
+    return debug_info
+
 @app.get("/info")
 async def get_analysis_info():
     """Get information about the tortuosity analysis"""
