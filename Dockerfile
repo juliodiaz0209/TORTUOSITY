@@ -25,10 +25,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Download LFS files if any pth files are LFS pointers
+# Download LFS files directly from GitHub using public API
 RUN if [ -f ".gitattributes" ] && grep -q "\.pth.*lfs" .gitattributes; then \
-        echo "Detected LFS configuration, pulling LFS files..."; \
-        git lfs install && git lfs pull || echo "LFS pull failed, proceeding..."; \
+        echo "Detected LFS configuration, downloading LFS files directly..."; \
+        curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model%20(11).pth" -o "final_model (11).pth" || echo "Failed to download final_model (11).pth"; \
+        curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus_improved.pth" -o "final_model_tarsus_improved.pth" || echo "Failed to download final_model_tarsus_improved.pth"; \
+        curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus.pth" -o "final_model_tarsus.pth" || echo "Failed to download final_model_tarsus.pth"; \
+        ls -la *.pth; \
     fi
 
 # Create necessary directories
