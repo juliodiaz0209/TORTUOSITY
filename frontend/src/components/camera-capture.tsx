@@ -399,7 +399,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                  <strong>🔴 Para conectar tu módulo IR:</strong>
                  <br />1. Conecta el módulo IR por USB
                  <br />2. Espera 5-10 segundos para que Windows lo detecte
-                 <br />3. Haz clic en "🔄 Actualizar Dispositivos"
+                 <br />3. Haz clic en &quot;🔄 Actualizar Dispositivos&quot;
                  <br />4. Verifica que los drivers estén instalados
                  <br />
                  <strong>🔍 Debug:</strong> Abre DevTools (F12) → Console para ver logs detallados

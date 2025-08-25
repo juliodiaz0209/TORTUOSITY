@@ -11,7 +11,6 @@ import {
   Download,
   Trash2,
   FileImage,
-  Upload,
   AlertCircle,
   CheckCircle,
   BarChart3,
@@ -200,7 +199,7 @@ export function PhotoManager({ onPhotoSelect }: PhotoManagerProps) {
                   <FileImage className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">No hay fotos guardadas</h3>
                   <p className="text-muted-foreground mb-4">
-                    Captura algunas fotos usando la pestaña "Capturar"
+                    Captura algunas fotos usando la pestaña &quot;Capturar&quot;
                   </p>
                   <Button onClick={() => {
                     const captureTab = document.querySelector('[value="capture"]') as HTMLButtonElement;

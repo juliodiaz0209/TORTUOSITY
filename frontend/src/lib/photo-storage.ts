@@ -69,7 +69,7 @@ class PhotoStorage {
         const request = store.getAll();
         request.onsuccess = () => {
           // Convert ISO strings back to Date objects
-          const photos = request.result.map((photo: any) => ({
+          const photos = request.result.map((photo: StoredPhoto) => ({
             ...photo,
             timestamp: new Date(photo.timestamp)
           }));
