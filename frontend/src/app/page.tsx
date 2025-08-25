@@ -9,18 +9,22 @@ import { UploadZone } from "@/components/upload-zone";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ResultsDisplay } from "@/components/results-display";
-import { 
-  Eye, 
-  Brain, 
-  Zap, 
-  AlertCircle, 
-  Loader2, 
-  BarChart3, 
-  Upload, 
+import { PhotoManager } from "@/components/photo-manager";
+import { StoredPhoto } from "@/lib/photo-storage";
+import {
+  Eye,
+  Brain,
+  Zap,
+  AlertCircle,
+  Loader2,
+  BarChart3,
+  Upload,
   Settings,
   Home,
   FileText,
-  Sparkles
+  Sparkles,
+  FileImage,
+  Camera
 } from "lucide-react";
 
 interface AnalysisResult {
@@ -47,13 +51,22 @@ export default function DashboardPage() {
   const [results, setResults] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [activeTab, setActiveTab] = useState<'upload' | 'results' | 'info'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'capture' | 'results' | 'info'>('upload');
   const [claheImage, setClaheImage] = useState<string | null>(null);
   const [isApplyingClahe, setIsApplyingClahe] = useState(false);
   const [convertToGray, setConvertToGray] = useState(true);
+  const [selectedCapturedPhoto, setSelectedCapturedPhoto] = useState<StoredPhoto | null>(null);
 
   const handleFileSelect = (file: File | null) => {
     setSelectedFile(file);
+    setError(null);
+    setResults(null);
+    setClaheImage(null);
+  };
+
+  const handleCapturedPhotoSelect = (photo: StoredPhoto) => {
+    setSelectedCapturedPhoto(photo);
+    setSelectedFile(null); // Clear any uploaded file
     setError(null);
     setResults(null);
     setClaheImage(null);
@@ -64,8 +77,21 @@ export default function DashboardPage() {
     setClaheImage(null); // Limpiar imagen anterior cuando se cambia la opción
   };
 
+  const loadExampleImage = async () => {
+    try {
+      // Load the example image from the frontend public folder
+      const response = await fetch('/meibomio.jpg');
+      const blob = await response.blob();
+      const file = new File([blob], 'meibomio.jpg', { type: 'image/jpeg' });
+      handleFileSelect(file);
+    } catch (error) {
+      console.error('Error loading example image:', error);
+      setError('No se pudo cargar la imagen de ejemplo');
+    }
+  };
+
   const analyzeImage = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile && !selectedCapturedPhoto) return;
 
     setIsAnalyzing(true);
     setError(null);
@@ -83,8 +109,21 @@ export default function DashboardPage() {
     }, 500);
 
     try {
+      let fileToAnalyze: File;
+
+      if (selectedFile) {
+        fileToAnalyze = selectedFile;
+      } else if (selectedCapturedPhoto) {
+        // Convert data URL to File object
+        const response = await fetch(selectedCapturedPhoto.dataUrl);
+        const blob = await response.blob();
+        fileToAnalyze = new File([blob], selectedCapturedPhoto.fileName || 'captured-image.jpg', { type: 'image/jpeg' });
+      } else {
+        throw new Error('No hay imagen seleccionada para analizar');
+      }
+
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", fileToAnalyze);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -112,6 +151,28 @@ export default function DashboardPage() {
       }
 
       const result: AnalysisResult = await response.json();
+
+      // Save analysis results to local storage if this was a captured photo
+      if (selectedCapturedPhoto) {
+        try {
+          // Update the photo in local storage with analysis results
+          const analysisResults = {
+            avgTortuosity: result.data.avg_tortuosity,
+            numGlands: result.data.num_glands,
+            individualTortuosities: result.data.individual_tortuosities
+          };
+
+          // Note: The photoStorage.updatePhotoAnalysis would need to be implemented
+          // For now, we'll just log the results
+          console.log('Analysis results for captured photo:', {
+            photoId: selectedCapturedPhoto.id,
+            results: analysisResults
+          });
+        } catch (error) {
+          console.warn('Could not save analysis results to local storage:', error);
+        }
+      }
+
       setResults(result);
       setProgress(100);
       setActiveTab('results');
@@ -124,14 +185,27 @@ export default function DashboardPage() {
   };
 
   const applyClaheFilter = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile && !selectedCapturedPhoto) return;
 
     setIsApplyingClahe(true);
     setError(null);
 
     try {
+      let fileToProcess: File;
+
+      if (selectedFile) {
+        fileToProcess = selectedFile;
+      } else if (selectedCapturedPhoto) {
+        // Convert data URL to File object
+        const response = await fetch(selectedCapturedPhoto.dataUrl);
+        const blob = await response.blob();
+        fileToProcess = new File([blob], selectedCapturedPhoto.fileName || 'captured-image.jpg', { type: 'image/jpeg' });
+      } else {
+        throw new Error('No hay imagen seleccionada para procesar');
+      }
+
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", fileToProcess);
       formData.append("convert_to_gray", convertToGray.toString());
 
       const response = await fetch("/api/apply-clahe", {
@@ -167,9 +241,18 @@ export default function DashboardPage() {
         const dataUrl = result.data.processed_image as string;
         const res = await fetch(dataUrl);
         const blob = await res.blob();
-        const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
-        const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
-        setSelectedFile(processedFile);
+
+        if (selectedFile) {
+          const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
+          const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
+          setSelectedFile(processedFile);
+        } else if (selectedCapturedPhoto) {
+          const baseName = selectedCapturedPhoto.fileName?.replace(/\.[^/.]+$/, "") || 'captured';
+          const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
+          setSelectedFile(processedFile);
+          setSelectedCapturedPhoto(null); // Clear captured photo since we're now using the processed file
+        }
+
         // Clear previous results if any
         setResults(null);
       } catch {}
@@ -224,6 +307,12 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('upload')}
             />
             <SidebarItem
+              icon={Camera}
+              label="Capturar"
+              active={activeTab === 'capture'}
+              onClick={() => setActiveTab('capture')}
+            />
+            <SidebarItem
               icon={BarChart3}
               label="Resultados"
               active={activeTab === 'results'}
@@ -253,11 +342,13 @@ export default function DashboardPage() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold">
             {activeTab === 'upload' && 'Análisis de Imagen'}
+            {activeTab === 'capture' && 'Captura de Imagen IR - Módulo Especializado'}
             {activeTab === 'results' && 'Resultados del Análisis'}
             {activeTab === 'info' && 'Información del Sistema'}
           </h2>
           <p className="text-muted-foreground">
             {activeTab === 'upload' && 'Sube una imagen del párpado para analizar la tortuosidad glandular'}
+            {activeTab === 'capture' && 'Conecta tu módulo IR especializado y captura imágenes para análisis profesional de meibografía'}
             {activeTab === 'results' && 'Visualiza los resultados detallados del análisis'}
             {activeTab === 'info' && 'Información sobre la metodología y modelos utilizados'}
           </p>
@@ -277,7 +368,24 @@ export default function DashboardPage() {
               <CardContent>
                 <UploadZone onFileSelect={handleFileSelect} selectedFile={selectedFile} />
                 
-                {selectedFile && (
+                {/* Botón de ejemplo */}
+                {!selectedFile && (
+                  <div className="mt-4 text-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={loadExampleImage}
+                      className="w-full"
+                    >
+                      <FileImage className="mr-2 h-4 w-4" />
+                      Cargar Imagen de Ejemplo
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Prueba la aplicación con una imagen de glándulas de Meibomio
+                    </p>
+                  </div>
+                )}
+                
+                {(selectedFile || selectedCapturedPhoto) && (
                   <div className="mt-4 flex flex-col gap-4">
                     {/* CLAHE Options */}
                     <div className="flex flex-col items-center space-y-2">
@@ -390,6 +498,12 @@ export default function DashboardPage() {
                 </AlertDescription>
               </Alert>
             )}
+          </div>
+        )}
+
+        {activeTab === 'capture' && (
+          <div className="animate-fade-in">
+            <PhotoManager onPhotoSelect={handleCapturedPhotoSelect} />
           </div>
         )}
 
