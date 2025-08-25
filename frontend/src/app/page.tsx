@@ -283,7 +283,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex w-full">
       {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 dashboard-sidebar p-4">
         <div className="flex flex-col h-full">
@@ -337,7 +337,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div className="ml-64 p-6 dashboard-content">
+      <div className="ml-64 p-6 dashboard-content min-h-screen bg-background w-full">
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold">
@@ -356,7 +356,7 @@ export default function DashboardPage() {
 
         {/* Content */}
         {activeTab === 'upload' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in bg-background">
             {/* Upload Zone */}
             <Card>
               <CardHeader>
@@ -502,13 +502,13 @@ export default function DashboardPage() {
         )}
 
         {activeTab === 'capture' && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in bg-background">
             <PhotoManager onPhotoSelect={handleCapturedPhotoSelect} />
           </div>
         )}
 
         {activeTab === 'results' && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in bg-background">
             {results ? (
               <ResultsDisplay 
                 data={results.data} 
@@ -537,7 +537,7 @@ export default function DashboardPage() {
         )}
 
         {activeTab === 'info' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in bg-background">
             {/* Methodology */}
             <Card>
           <CardHeader>

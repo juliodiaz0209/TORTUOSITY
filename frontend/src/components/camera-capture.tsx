@@ -229,7 +229,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
   }, [availableDevices, selectedDeviceId]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-visible">
       {/* Camera Controls */}
       <Card>
         <CardHeader>
@@ -238,7 +238,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
             Captura de Imagen IR - Módulo Especializado
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 overflow-visible">
           {/* Device Selection */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Seleccionar Módulo IR:</label>

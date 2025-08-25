@@ -134,8 +134,8 @@ export function PhotoManager({ onPhotoSelect }: PhotoManagerProps) {
   }, [loadPhotos]);
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="capture" className="w-full">
+    <div className="space-y-6 overflow-visible">
+      <Tabs defaultValue="capture" className="w-full overflow-visible">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="capture" className="flex items-center gap-2">
             <Camera className="h-4 w-4" />
@@ -147,11 +147,11 @@ export function PhotoManager({ onPhotoSelect }: PhotoManagerProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="capture" className="space-y-4">
+        <TabsContent value="capture" className="space-y-4 overflow-visible">
           <CameraCapture onPhotoCapture={handlePhotoCapture} />
         </TabsContent>
 
-        <TabsContent value="gallery" className="space-y-4">
+        <TabsContent value="gallery" className="space-y-4 overflow-visible">
           {/* Gallery Header */}
           <Card>
             <CardHeader>
@@ -202,7 +202,10 @@ export function PhotoManager({ onPhotoSelect }: PhotoManagerProps) {
                   <p className="text-muted-foreground mb-4">
                     Captura algunas fotos usando la pestaña "Capturar"
                   </p>
-                  <Button onClick={() => document.querySelector('[value="capture"]')?.click()}>
+                  <Button onClick={() => {
+                    const captureTab = document.querySelector('[value="capture"]') as HTMLButtonElement;
+                    if (captureTab) captureTab.click();
+                  }}>
                     <Camera className="mr-2 h-4 w-4" />
                     Ir a Capturar
                   </Button>

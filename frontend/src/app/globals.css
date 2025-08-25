@@ -54,6 +54,19 @@
   letter-spacing: -0.04em;
 }
 
+/* Ensure body and html have proper background */
+html, body {
+  background-color: oklch(1 0 0);
+  min-height: 100vh;
+}
+
+/* Dark mode backgrounds */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background-color: oklch(0.145 0 0);
+  }
+}
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -104,6 +117,44 @@
 
 .dashboard-content {
   background-color: oklch(1 0 0);
+  width: calc(100vw - 16rem); /* 16rem = 64 (ml-64) */
+  max-width: 100%;
+}
+
+/* Ensure no black spaces at bottom */
+.dashboard-content > div {
+  background-color: inherit;
+}
+
+/* Fix for content sections */
+.animate-fade-in {
+  background-color: inherit;
+  min-height: 100%;
+}
+
+/* Ensure full width coverage */
+.dashboard-content {
+  overflow: visible !important;
+}
+
+/* Fix for right edge black strip */
+.dashboard-content > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Fix for duplicate scrollbars */
+.dashboard-content .tabs {
+  overflow: visible !important;
+}
+
+.dashboard-content .tabs-content {
+  overflow: visible !important;
+}
+
+/* Ensure no internal scrolling in tabs */
+[data-radix-tabs-content] {
+  overflow: visible !important;
 }
 
 /* Animation keyframes */
