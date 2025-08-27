@@ -36,7 +36,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
   return (
     <div className="space-y-4">
       {!selectedFile ? (
-        <Card>
+        <Card className="border-border">
           <CardContent className="p-6">
             <div
               {...getRootProps()}
@@ -64,7 +64,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
               <FileImage className="h-8 w-8 text-primary" />

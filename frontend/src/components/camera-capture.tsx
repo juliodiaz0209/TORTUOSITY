@@ -308,7 +308,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
   return (
     <div className="space-y-4 overflow-visible">
       {/* Camera Controls */}
-      <Card>
+      <Card className="border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
@@ -353,7 +353,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                 variant="outline"
                 size="sm"
                 onClick={getAvailableDevices}
-                className="flex-1"
+                className="flex-1 border-border"
               >
                 🔄 Actualizar Dispositivos
               </Button>
@@ -361,7 +361,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowDeviceInfo(!showDeviceInfo)}
-                className="flex-1"
+                className="flex-1 border-border"
               >
                 {showDeviceInfo ? 'Ocultar Info' : '🔍 Ver Info Dispositivos'}
               </Button>
@@ -370,7 +370,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAllDevices(!showAllDevices)}
-                className="flex-1"
+                className="flex-1 border-border"
               >
                 {showAllDevices ? 'Ocultar Todos' : '📹 Ver Todos'}
               </Button>
@@ -385,7 +385,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
 
                       {/* Device Information */}
           {showDeviceInfo && (
-            <Card className="mt-4">
+            <Card className="mt-4 border-border">
               <CardHeader>
                                  <CardTitle className="text-sm">📋 Información de Módulos IR Detectados</CardTitle>
               </CardHeader>
@@ -442,7 +442,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
           
           {/* All Devices Information (for debugging) */}
           {showAllDevices && (
-            <Card className="mt-4">
+            <Card className="mt-4 border-border">
               <CardHeader>
                 <CardTitle className="text-sm">📹 Todos los Dispositivos de Video Detectados</CardTitle>
               </CardHeader>
@@ -564,7 +564,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
 
       {/* Video Preview */}
       {isStreaming && (
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Vista Previa del Módulo IR</CardTitle>
           </CardHeader>
@@ -588,7 +588,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
 
       {/* Captured Photos Gallery */}
       {capturedPhotos.length > 0 && (
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Imágenes IR Capturadas ({capturedPhotos.length})</CardTitle>
           </CardHeader>
@@ -606,7 +606,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                       size="sm"
                       variant="secondary"
                       onClick={() => downloadPhoto(photo)}
-                      className="h-6 w-6 p-0"
+                      className="h-6 w-6 p-0 border-border"
                     >
                       <Download className="h-3 w-3" />
                     </Button>

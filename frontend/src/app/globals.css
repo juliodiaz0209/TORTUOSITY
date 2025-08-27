@@ -42,8 +42,8 @@
   --color-accent-foreground: oklch(0.985 0 0);
   --color-destructive: oklch(0.704 0.191 22.216);
   --color-destructive-foreground: oklch(0.985 0 0);
-  --color-border: oklch(1 0 0 / 10%);
-  --color-input: oklch(1 0 0 / 15%);
+  --color-border: oklch(0.269 0 0);
+  --color-input: oklch(0.269 0 0);
   --color-ring: oklch(0.556 0 0);
   --font-sans: "Inter", system-ui, sans-serif;
 }

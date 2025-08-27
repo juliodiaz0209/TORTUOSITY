@@ -24,8 +24,28 @@ import { photoStorage, StoredPhoto } from "@/lib/photo-storage";
 
 interface PhotoManagerProps {
   onPhotoSelect?: (photo: StoredPhoto) => void;
-  onAnalysisComplete?: (results: any) => void;
-  onTabChange?: (tab: string) => void;
+  onAnalysisComplete?: (results: AnalysisResults) => void;
+  onTabChange?: (tab: 'upload' | 'capture' | 'results' | 'info') => void;
+}
+
+interface AnalysisResults {
+  success: boolean;
+  message: string;
+  data: {
+    avg_tortuosity: number;
+    num_glands: number;
+    individual_tortuosities: number[];
+    processed_image: string;
+    analysis_info: {
+      total_glands_analyzed: number;
+      tortuosity_range: {
+        min: number;
+        max: number;
+      };
+    };
+  };
+  processedImage?: string;
+  timestamp?: Date;
 }
 
 export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }: PhotoManagerProps) {
@@ -35,7 +55,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
   const [error, setError] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null);
 
   // Load photos from storage
   const loadPhotos = useCallback(async () => {
@@ -173,28 +193,50 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
 
       const result = await response2.json();
       console.log('✅ Análisis completado exitosamente:', result);
-      setAnalysisResults(result);
+      
+      // Ensure the result has the required properties for AnalysisResults interface
+      const analysisResult: AnalysisResults = {
+        success: true,
+        message: 'Análisis completado exitosamente',
+        data: {
+          avg_tortuosity: result.data.avg_tortuosity,
+          num_glands: result.data.num_glands,
+          individual_tortuosities: result.data.individual_tortuosities,
+          processed_image: result.data.processed_image || '',
+          analysis_info: result.data.analysis_info || {
+            total_glands_analyzed: result.data.num_glands || 0,
+            tortuosity_range: {
+              min: Math.min(...(result.data.individual_tortuosities || [0])),
+              max: Math.max(...(result.data.individual_tortuosities || [0]))
+            }
+          }
+        },
+        processedImage: result.data.processed_image || '',
+        timestamp: new Date()
+      };
+      
+      setAnalysisResults(analysisResult);
 
       // Save analysis results to local storage
       try {
-        const analysisResults = {
+        const localAnalysisResults = {
           avgTortuosity: result.data.avg_tortuosity,
           numGlands: result.data.num_glands,
           individualTortuosities: result.data.individual_tortuosities
         };
 
         // Update the photo with analysis results
-        await photoStorage.updatePhotoAnalysis(selectedPhoto.id, analysisResults);
+        await photoStorage.updatePhotoAnalysis(selectedPhoto.id, localAnalysisResults);
         
         // Refresh the photos list to show updated analysis
         await loadPhotos();
         
         // Update selected photo with analysis results
-        setSelectedPhoto({ ...selectedPhoto, analysisResults });
+        setSelectedPhoto({ ...selectedPhoto, analysisResults: localAnalysisResults });
 
         // Notify parent component about analysis completion
         if (onAnalysisComplete) {
-          onAnalysisComplete(result);
+          onAnalysisComplete(analysisResult);
         }
 
         // Change to results tab after successful analysis
@@ -275,7 +317,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
 
         <TabsContent value="gallery" className="space-y-4 overflow-visible">
           {/* Gallery Header */}
-          <Card>
+          <Card className="border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -288,6 +330,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                     size="sm"
                     onClick={exportAllPhotos}
                     disabled={storedPhotos.length === 0}
+                    className="border-border"
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Exportar
@@ -320,16 +363,16 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
               ) : (
                 <>
                   {/* Analysis functionality info */}
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <Brain className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-blue-800">
+                                             <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                       <div className="text-sm text-blue-800 dark:text-blue-200">
                         <p className="font-medium mb-1">💡 Nueva Funcionalidad: Análisis Directo</p>
                         <p>Ahora puedes analizar cualquier foto guardada directamente desde la galería:</p>
                         <ul className="list-disc list-inside mt-1 space-y-1">
-                          <li>Haz clic en <strong>"Analizar"</strong> en cualquier foto para procesarla</li>
+                          <li>Haz clic en <strong>&quot;Analizar&quot;</strong> en cualquier foto para procesarla</li>
                           <li>Los resultados se guardan automáticamente con la foto</li>
-                          <li>Las fotos analizadas muestran un badge verde "Analizada"</li>
+                          <li>Las fotos analizadas muestran un badge verde &quot;Analizada&quot;</li>
                         </ul>
                       </div>
                     </div>
@@ -353,13 +396,13 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {storedPhotos.map((photo) => (
-                        <Card
-                          key={photo.id}
-                          className={`cursor-pointer transition-all hover:shadow-md ${
-                            selectedPhoto?.id === photo.id ? 'ring-2 ring-primary' : ''
-                          }`}
-                          onClick={() => handlePhotoSelect(photo)}
-                        >
+                                            <Card
+                      key={photo.id}
+                      className={`cursor-pointer transition-all hover:shadow-md border-border ${
+                        selectedPhoto?.id === photo.id ? 'ring-2 ring-primary' : ''
+                      }`}
+                      onClick={() => handlePhotoSelect(photo)}
+                    >
                           <CardContent className="p-4">
                             <div className="relative mb-3">
                               <img
@@ -393,52 +436,52 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                                 </div>
                               )}
 
-                              <div className="flex gap-1">
-                                {!photo.analysisResults && (
-                                                                  <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedPhoto(photo);
-                                    analyzeSelectedPhoto();
-                                  }}
-                                  className="flex-1"
-                                  disabled={isAnalyzing}
-                                >
-                                    {isAnalyzing && selectedPhoto?.id === photo.id ? (
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : (
-                                      <Brain className="h-3 w-3 mr-1" />
-                                    )}
-                                    Analizar
-                                  </Button>
+                                                        <div className="grid grid-cols-2 gap-1">
+                            {!photo.analysisResults && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPhoto(photo);
+                                  analyzeSelectedPhoto();
+                                }}
+                                className="w-full border-border"
+                                disabled={isAnalyzing}
+                              >
+                                {isAnalyzing && selectedPhoto?.id === photo.id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Brain className="h-3 w-3 mr-1" />
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    downloadPhoto(photo);
-                                  }}
-                                  className="flex-1"
-                                >
-                                  <Download className="h-3 w-3 mr-1" />
-                                  Descargar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deletePhoto(photo.id);
-                                  }}
-                                  className="flex-1"
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  Eliminar
-                                </Button>
-                              </div>
+                                Analizar
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadPhoto(photo);
+                              }}
+                              className="w-full border-border"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Descargar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePhoto(photo.id);
+                              }}
+                              className="w-full"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Eliminar
+                            </Button>
+                          </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -452,7 +495,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
 
           {/* Selected Photo Details */}
           {selectedPhoto && (
-            <Card>
+            <Card className="border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5" />
@@ -560,11 +603,11 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                           <p>Glándulas analizadas: {analysisResults.data.individual_tortuosities.length}</p>
                         </div>
                         <div className="mt-3 pt-3 border-t border-green-200">
-                          <Button 
-                            onClick={() => onTabChange?.('results')}
-                            size="sm"
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          >
+                                                  <Button 
+                          onClick={() => onTabChange?.('results')}
+                          size="sm"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white border-border"
+                        >
                             <BarChart3 className="h-4 w-4 mr-2" />
                             Ver Resultados Completos
                           </Button>
@@ -576,7 +619,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                       <Button 
                         onClick={analyzeSelectedPhoto} 
                         disabled={isAnalyzing}
-                        className="flex-1"
+                        className="flex-1 border-border"
                       >
                         {isAnalyzing ? (
                           <>
@@ -590,7 +633,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                           </>
                         )}
                       </Button>
-                      <Button variant="outline" onClick={() => downloadPhoto(selectedPhoto)}>
+                      <Button variant="outline" onClick={() => downloadPhoto(selectedPhoto)} className="border-border">
                         <Download className="mr-2 h-4 w-4" />
                         Descargar
                       </Button>

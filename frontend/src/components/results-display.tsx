@@ -41,7 +41,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
     <div className="space-y-6">
       {/* Main Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tortuosidad Promedio</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
@@ -54,7 +54,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Glándulas Detectadas</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -67,7 +67,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Rango Mín-Máx</CardTitle>
             <Info className="h-4 w-4 text-muted-foreground" />
@@ -82,7 +82,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Estado General</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -101,7 +101,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       {/* Image and Table Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Processed Image */}
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -118,7 +118,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
         </Card>
 
         {/* Individual Tortuosity Table */}
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Tortuosidad por Glándula</CardTitle>
           </CardHeader>
@@ -155,7 +155,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       </div>
 
       {/* Chart */}
-      <Card>
+      <Card className="border-border">
         <CardHeader>
           <CardTitle>Visualización Gráfica de Tortuosidad</CardTitle>
         </CardHeader>
@@ -186,7 +186,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       </Card>
 
       {/* Interpretation Guide */}
-      <Card>
+      <Card className="border-border">
         <CardHeader>
           <CardTitle>Guía de Interpretación</CardTitle>
         </CardHeader>

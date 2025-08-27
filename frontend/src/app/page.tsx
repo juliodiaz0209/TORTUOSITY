@@ -327,7 +327,7 @@ export default function DashboardPage() {
           </nav>
 
           {/* Status */}
-          <div className="pt-4 border-t border-border">
+          <div className="pt-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span>Sistema Activo</span>
@@ -358,7 +358,7 @@ export default function DashboardPage() {
         {activeTab === 'upload' && (
           <div className="space-y-6 animate-fade-in bg-background">
             {/* Upload Zone */}
-            <Card>
+            <Card className="border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
@@ -371,11 +371,11 @@ export default function DashboardPage() {
                 {/* Botón de ejemplo */}
                 {!selectedFile && (
                   <div className="mt-4 text-center">
-                    <Button 
-                      variant="outline" 
-                      onClick={loadExampleImage}
-                      className="w-full"
-                    >
+                                          <Button 
+                        variant="outline" 
+                        onClick={loadExampleImage}
+                        className="w-full border-border"
+                      >
                       <FileImage className="mr-2 h-4 w-4" />
                       Cargar Imagen de Ejemplo
                     </Button>
@@ -429,7 +429,7 @@ export default function DashboardPage() {
                         onClick={applyClaheFilter} 
                         disabled={isApplyingClahe}
                         variant="outline"
-                        className="flex-1"
+                        className="flex-1 border-border"
                       >
                         {isApplyingClahe ? (
                           <>
