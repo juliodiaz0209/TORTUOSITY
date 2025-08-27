@@ -503,7 +503,14 @@ export default function DashboardPage() {
 
         {activeTab === 'capture' && (
           <div className="animate-fade-in bg-background">
-            <PhotoManager onPhotoSelect={handleCapturedPhotoSelect} />
+            <PhotoManager 
+              onPhotoSelect={handleCapturedPhotoSelect}
+              onAnalysisComplete={(results) => {
+                setResults(results);
+                setActiveTab('results');
+              }}
+              onTabChange={setActiveTab}
+            />
           </div>
         )}
 

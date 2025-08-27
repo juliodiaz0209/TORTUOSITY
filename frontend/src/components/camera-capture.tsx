@@ -30,6 +30,20 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [showDeviceInfo, setShowDeviceInfo] = useState(false);
+  const [showAllDevices, setShowAllDevices] = useState(false);
+  const [allVideoDevices, setAllVideoDevices] = useState<MediaDeviceInfo[]>([]);
+
+  // Get all video devices (for debugging)
+  const getAllVideoDevices = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const allVideoDevices = devices.filter(device => device.kind === 'videoinput');
+      return allVideoDevices;
+    } catch (err) {
+      console.error('Error getting all video devices:', err);
+      return [];
+    }
+  }, []);
 
   // Get available IR camera devices
   const getAvailableDevices = useCallback(async () => {
@@ -53,6 +67,21 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
         .filter(device => device.deviceId && device.deviceId.trim() !== '')
         .filter(device => {
           const label = device.label.toLowerCase();
+          
+          // Exclude virtual cameras and OBS
+          if (
+            label.includes('obs') ||
+            label.includes('virtual') ||
+            label.includes('virtual camera') ||
+            label.includes('screen capture') ||
+            label.includes('desktop') ||
+            label.includes('monitor') ||
+            label.includes('display')
+          ) {
+            return false;
+          }
+          
+          // Include only specialized IR and medical devices
           return (
             label.includes('ir') ||
             label.includes('infrarrojo') ||
@@ -62,15 +91,47 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
             label.includes('medical') ||
             label.includes('specialized') ||
             label.includes('professional') ||
-            label.includes('clinical')
+            label.includes('clinical') ||
+            label.includes('usb') ||
+            label.includes('webcam')
           );
         });
 
-      console.log('🔴 Módulos IR detectados:', irDevices.map(d => ({
+      // Log all video devices for debugging
+      const allVideoDevicesList = devices.filter(device => device.kind === 'videoinput');
+      setAllVideoDevices(allVideoDevicesList);
+      console.log('📹 Todos los dispositivos de video detectados:', allVideoDevicesList.map(d => ({
         label: d.label,
         deviceId: d.deviceId.substring(0, 8) + '...',
         groupId: d.groupId
       })));
+      
+      console.log('🔴 Módulos IR especializados detectados:', irDevices.map(d => ({
+        label: d.label,
+        deviceId: d.deviceId.substring(0, 8) + '...',
+        groupId: d.groupId
+      })));
+      
+      // Log excluded devices for debugging
+      const excludedDevices = allVideoDevices.filter(device => {
+        const label = device.label.toLowerCase();
+        return (
+          label.includes('obs') ||
+          label.includes('virtual') ||
+          label.includes('virtual camera') ||
+          label.includes('screen capture') ||
+          label.includes('desktop') ||
+          label.includes('monitor') ||
+          label.includes('display')
+        );
+      });
+      
+      if (excludedDevices.length > 0) {
+        console.log('❌ Dispositivos excluidos (cámaras virtuales):', excludedDevices.map(d => ({
+          label: d.label,
+          reason: 'Cámara virtual detectada'
+        })));
+      }
 
       setAvailableDevices(irDevices);
 
@@ -87,6 +148,22 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
         console.log('   - Los drivers estén instalados correctamente');
         console.log('   - El dispositivo esté encendido');
         console.log('   - No haya otros dispositivos interfiriendo');
+        console.log('   - Solo se muestran dispositivos especializados (no cámaras virtuales)');
+        
+        // Show what devices were found but excluded
+        if (allVideoDevices.length > 0) {
+          console.log('📹 Dispositivos de video encontrados pero excluidos:');
+          allVideoDevices.forEach(device => {
+            const label = device.label.toLowerCase();
+            let reason = 'Dispositivo estándar';
+            if (label.includes('obs') || label.includes('virtual')) {
+              reason = 'Cámara virtual (OBS, etc.)';
+            } else if (label.includes('laptop') || label.includes('integrated')) {
+              reason = 'Cámara integrada de laptop';
+            }
+            console.log(`   - ${device.label}: ${reason}`);
+          });
+        }
       }
     } catch (err) {
       console.error('Error enumerating IR devices:', err);
@@ -288,6 +365,15 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
               >
                 {showDeviceInfo ? 'Ocultar Info' : '🔍 Ver Info Dispositivos'}
               </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAllDevices(!showAllDevices)}
+                className="flex-1"
+              >
+                {showAllDevices ? 'Ocultar Todos' : '📹 Ver Todos'}
+              </Button>
             </div>
                          <div className="text-xs text-muted-foreground">
                💡 <strong>Si no detecta tu módulo IR:</strong>
@@ -349,6 +435,65 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                       </div>
                     ))}
                   </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* All Devices Information (for debugging) */}
+          {showAllDevices && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-sm">📹 Todos los Dispositivos de Video Detectados</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-xs text-muted-foreground mb-2">
+                  💡 <strong>Esta lista muestra TODOS los dispositivos, incluyendo los excluidos:</strong>
+                  <br />• 🔴 <strong>Verde:</strong> Módulos IR especializados (compatibles)
+                  <br />• ❌ <strong>Rojo:</strong> Cámaras virtuales y no compatibles (excluidas)
+                  <br />• ⚠️ <strong>Amarillo:</strong> Dispositivos estándar (no especializados)
+                </div>
+                
+                {allVideoDevices.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p>No se pudieron obtener los dispositivos</p>
+                  </div>
+                ) : (
+                  allVideoDevices.map((device, index) => {
+                    const label = device.label.toLowerCase();
+                    let status = 'standard';
+                    let statusText = 'Dispositivo Estándar';
+                    let statusColor = 'bg-yellow-100 text-yellow-800';
+                    
+                    if (label.includes('obs') || label.includes('virtual') || 
+                        label.includes('screen capture') || label.includes('desktop')) {
+                      status = 'excluded';
+                      statusText = 'Cámara Virtual (Excluida)';
+                      statusColor = 'bg-red-100 text-red-800';
+                    } else if (availableDevices.some(d => d.deviceId === device.deviceId)) {
+                      status = 'compatible';
+                      statusText = 'Módulo IR Especializado';
+                      statusColor = 'bg-green-100 text-green-800';
+                    }
+                    
+                    return (
+                      <div key={device.deviceId} className="p-2 bg-muted rounded text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">
+                            {device.label || `Dispositivo ${index + 1}`}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusColor}`}>
+                            {status === 'compatible' ? '🔴' : status === 'excluded' ? '❌' : '⚠️'} {statusText}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground mt-1">
+                          ID: {device.deviceId.substring(0, 12)}...
+                          <br />
+                          Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
