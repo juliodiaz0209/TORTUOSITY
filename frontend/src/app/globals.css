@@ -27,7 +27,6 @@
 
 @theme dark {
   --color-background: oklch(0.145 0 0);
-  --color-foreground: oklch(0.985 0 0);
   --color-card: oklch(0.205 0 0);
   --color-card-foreground: oklch(0.985 0 0);
   --color-popover: oklch(0.205 0 0);
@@ -67,23 +66,98 @@ html, body {
   }
 }
 
-/* Custom scrollbar */
+/* Modern Scrollbars - Global */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.8 0 0) transparent;
+}
+
+/* Webkit Scrollbars - Modern and Subtle */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0.8 0 0);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0 0);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: oklch(0.5 0 0);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode scrollbars */
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: oklch(0.6 0 0) transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.6 0 0);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.7 0 0);
+  }
+  
+  ::-webkit-scrollbar-thumb:active {
+    background: oklch(0.8 0 0);
+  }
+}
+
+/* Custom scrollbar for specific components */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: oklch(0.97 0 0);
+  background: transparent;
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(0.556 0 0);
+  background: oklch(0.7 0 0);
   border-radius: 3px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: all 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.145 0 0);
+  background: oklch(0.5 0 0);
+  background-clip: content-box;
+  transform: scale(1.1);
+}
+
+/* Dark mode custom scrollbar */
+@media (prefers-color-scheme: dark) {
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0 0);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.6 0 0);
+  }
 }
 
 /* Smooth transitions */
@@ -113,12 +187,39 @@ html, body {
 .dashboard-sidebar {
   background-color: oklch(1 0 0);
   border-right: 1px solid oklch(0.922 0 0);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode sidebar */
+@media (prefers-color-scheme: dark) {
+  .dashboard-sidebar {
+    background-color: oklch(0.205 0 0);
+    border-right: 1px solid oklch(0.269 0 0);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .dashboard-content {
   background-color: oklch(1 0 0);
-  width: calc(100vw - 16rem); /* 16rem = 64 (ml-64) */
+  width: 100%;
   max-width: 100%;
+}
+
+/* Desktop layout */
+@media (min-width: 768px) {
+  .dashboard-content {
+    margin-left: 16rem; /* 64 = 16rem */
+    width: calc(100vw - 16rem);
+  }
+}
+
+/* Mobile layout */
+@media (max-width: 767px) {
+  .dashboard-content {
+    margin-left: 0;
+    width: 100vw;
+    padding: 1rem;
+  }
 }
 
 /* Ensure no black spaces at bottom */
@@ -157,6 +258,31 @@ html, body {
   overflow: visible !important;
 }
 
+/* Mobile-specific improvements */
+@media (max-width: 767px) {
+  /* Better spacing for mobile */
+  .dashboard-content {
+    padding: 1rem;
+  }
+  
+  /* Ensure cards don't overflow */
+  .dashboard-content .card {
+    margin: 0;
+    width: 100%;
+  }
+  
+  /* Ensure text doesn't overflow */
+  .dashboard-content h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  .dashboard-content p {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
 /* Animation keyframes */
 @keyframes fadeIn {
   from {
@@ -186,4 +312,34 @@ html, body {
 
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
+}
+
+/* Sidebar animations */
+.dashboard-sidebar {
+  transition: transform 0.2s ease-out;
+}
+
+/* Mobile overlay */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  transition: opacity 0.15s ease-out;
+}
+
+/* Ensure proper z-index for sidebar on mobile */
+@media (max-width: 767px) {
+  .dashboard-sidebar {
+    z-index: 50;
+  }
+  
+  /* Faster transitions on mobile for better UX */
+  .dashboard-sidebar {
+    transition: transform 0.15s ease-out;
+  }
+  
+  .mobile-overlay {
+    transition: opacity 0.1s ease-out;
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,7 +24,9 @@ import {
   FileText,
   Sparkles,
   FileImage,
-  Camera
+  Camera,
+  Menu,
+  X
 } from "lucide-react";
 
 interface AnalysisResult {
@@ -56,6 +58,39 @@ export default function DashboardPage() {
   const [isApplyingClahe, setIsApplyingClahe] = useState(false);
   const [convertToGray, setConvertToGray] = useState(true);
   const [selectedCapturedPhoto, setSelectedCapturedPhoto] = useState<StoredPhoto | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile && sidebarOpen) {
+        const sidebar = document.getElementById('sidebar');
+        const hamburger = document.getElementById('hamburger');
+        if (sidebar && !sidebar.contains(event.target as Node) && 
+            hamburger && !hamburger.contains(event.target as Node)) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobile, sidebarOpen]);
 
   const handleFileSelect = (file: File | null) => {
     setSelectedFile(file);
@@ -270,7 +305,12 @@ export default function DashboardPage() {
     onClick: () => void;
   }) => (
     <button
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        if (isMobile) {
+          setSidebarOpen(false);
+        }
+      }}
       className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${
         active 
           ? 'bg-primary text-primary-foreground shadow-sm' 
@@ -284,8 +324,23 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background flex w-full">
+      {/* Mobile Overlay */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-100 ease-out"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 dashboard-sidebar p-4">
+      <div 
+        id="sidebar"
+        className={`fixed left-0 top-0 h-full z-50 transition-transform duration-150 ease-out ${
+          isMobile 
+            ? `w-64 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : 'w-64'
+        } dashboard-sidebar p-4`}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-2 mb-8">
@@ -337,7 +392,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div className="ml-64 p-6 dashboard-content min-h-screen bg-background w-full">
+      <div className={`transition-all duration-150 ease-out p-6 dashboard-content min-h-screen bg-background w-full ${
+        isMobile ? 'ml-0' : 'ml-64'
+      }`}>
+        {/* Mobile Header with Hamburger */}
+        {isMobile && (
+          <div className="flex items-center gap-4 mb-6 lg:hidden">
+            <button
+              id="hamburger"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              {sidebarOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-primary rounded-lg">
+                <Eye className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg">Tortuosity AI</h1>
+                <p className="text-xs text-muted-foreground">Análisis Avanzado</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold">
@@ -371,11 +454,11 @@ export default function DashboardPage() {
                 {/* Botón de ejemplo */}
                 {!selectedFile && (
                   <div className="mt-4 text-center">
-                                          <Button 
-                        variant="outline" 
-                        onClick={loadExampleImage}
-                        className="w-full border-border"
-                      >
+                    <Button 
+                      variant="outline" 
+                      onClick={loadExampleImage}
+                      className="w-full border-border"
+                    >
                       <FileImage className="mr-2 h-4 w-4" />
                       Cargar Imagen de Ejemplo
                     </Button>
@@ -407,7 +490,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     
-                    <div className="flex gap-2 justify-center">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
                       <Button 
                         onClick={analyzeImage} 
                         disabled={isAnalyzing}
@@ -547,48 +630,48 @@ export default function DashboardPage() {
           <div className="space-y-6 animate-fade-in bg-background">
             {/* Methodology */}
             <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
                   Metodología
-            </CardTitle>
-          </CardHeader>
+                </CardTitle>
+              </CardHeader>
               <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-green-600">Fórmula de Tortuosidad</h4>
-                <p className="text-sm text-muted-foreground">
-                  Tortuosidad = (Perímetro / (2 × Altura del rectángulo mínimo externo)) - 1
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-blue-600">Interpretación</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p><strong>0.0 - 0.1:</strong> Tortuosidad baja (normal)</p>
-                  <p><strong>0.1 - 0.2:</strong> Tortuosidad moderada</p>
-                  <p><strong>&gt; 0.2:</strong> Tortuosidad alta (sugestivo de MGD)</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-green-600">Fórmula de Tortuosidad</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Tortuosidad = (Perímetro / (2 × Altura del rectángulo mínimo externo)) - 1
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-blue-600">Interpretación</h4>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p><strong>0.0 - 0.1:</strong> Tortuosidad baja (normal)</p>
+                      <p><strong>0.1 - 0.2:</strong> Tortuosidad moderada</p>
+                      <p><strong>&gt; 0.2:</strong> Tortuosidad alta (sugestivo de MGD)</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-purple-600">Modelos Utilizados</h4>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p><strong>Mask R-CNN:</strong> Detección de glándulas individuales</p>
+                      <p><strong>UNet:</strong> Segmentación del contorno del párpado</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-purple-600">Modelos Utilizados</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p><strong>Mask R-CNN:</strong> Detección de glándulas individuales</p>
-                  <p><strong>UNet:</strong> Segmentación del contorno del párpado</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
             {/* System Info */}
             <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
                   Información del Sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <h4 className="font-semibold">Tecnologías</h4>
@@ -607,10 +690,10 @@ export default function DashboardPage() {
                       <li>• Métricas detalladas</li>
                       <li>• Interfaz responsiva</li>
                     </ul>
-              </div>
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

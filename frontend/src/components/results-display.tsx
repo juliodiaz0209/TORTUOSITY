@@ -38,16 +38,16 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Main Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tortuosidad Promedio</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Tortuosidad Promedio</CardTitle>
+            <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.avg_tortuosity.toFixed(3)}</div>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_tortuosity.toFixed(3)}</div>
             <p className="text-xs text-muted-foreground">
               Valor global
             </p>
@@ -56,11 +56,11 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
 
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Glándulas Detectadas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Glándulas Detectadas</CardTitle>
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.num_glands}</div>
+            <div className="text-lg sm:text-2xl font-bold">{data.num_glands}</div>
             <p className="text-xs text-muted-foreground">
               Total identificadas
             </p>
@@ -69,11 +69,11 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
 
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rango Mín-Máx</CardTitle>
-            <Info className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Rango Mín-Máx</CardTitle>
+            <Info className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg sm:text-2xl font-bold">
               {data.analysis_info.tortuosity_range.min.toFixed(3)} - {data.analysis_info.tortuosity_range.max.toFixed(3)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -84,11 +84,11 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
 
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado General</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Estado General</CardTitle>
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg sm:text-2xl font-bold">
               {data.avg_tortuosity <= 0.1 ? "Normal" : data.avg_tortuosity <= 0.2 ? "Moderado" : "Alto"}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -99,12 +99,12 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       </div>
 
       {/* Image and Table Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Processed Image */}
         <Card className="border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
               Imagen Procesada
             </CardTitle>
           </CardHeader>
@@ -120,16 +120,16 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
         {/* Individual Tortuosity Table */}
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Tortuosidad por Glándula</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Tortuosidad por Glándula</CardTitle>
           </CardHeader>
           <CardContent>
-                         <div className="max-h-96 overflow-y-auto custom-scrollbar">
+            <div className="max-h-64 sm:max-h-96 overflow-y-auto custom-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-xs sm:text-sm">ID</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Valor</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -137,10 +137,10 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
                     const interpretation = getInterpretation(value);
                     return (
                       <TableRow key={index}>
-                        <TableCell className="font-medium">G{index + 1}</TableCell>
-                        <TableCell>{value.toFixed(3)}</TableCell>
+                        <TableCell className="font-medium text-xs sm:text-sm">G{index + 1}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">{value.toFixed(3)}</TableCell>
                         <TableCell>
-                          <Badge className={interpretation.color}>
+                          <Badge className={`${interpretation.color} text-xs`}>
                             {interpretation.text}
                           </Badge>
                         </TableCell>
@@ -157,10 +157,10 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       {/* Chart */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle>Visualización Gráfica de Tortuosidad</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Visualización Gráfica de Tortuosidad</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px] w-full">
+          <div className="h-[300px] sm:h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -178,7 +178,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-center text-sm text-muted-foreground mt-4">
+          <p className="text-center text-xs sm:text-sm text-muted-foreground mt-4">
             Gráfico comparativo de la tortuosidad para cada glándula identificada. 
             Valores más altos indican mayor curvatura.
           </p>
@@ -188,23 +188,23 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
       {/* Interpretation Guide */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle>Guía de Interpretación</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Guía de Interpretación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">0.0 - 0.1</div>
-              <div className="text-sm text-green-700 dark:text-green-300">Tortuosidad Baja</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-green-600">0.0 - 0.1</div>
+              <div className="text-xs sm:text-sm text-green-700 dark:text-green-300">Tortuosidad Baja</div>
               <div className="text-xs text-green-600 dark:text-green-400">Normal</div>
             </div>
-            <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">0.1 - 0.2</div>
-              <div className="text-sm text-yellow-700 dark:text-yellow-300">Tortuosidad Moderada</div>
+            <div className="text-center p-3 sm:p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-yellow-600">0.1 - 0.2</div>
+              <div className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300">Tortuosidad Moderada</div>
               <div className="text-xs text-yellow-600 dark:text-yellow-400">Cambios Iniciales</div>
             </div>
-            <div className="text-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">&gt; 0.2</div>
-              <div className="text-sm text-red-700 dark:text-red-300">Tortuosidad Alta</div>
+            <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-950 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-red-600">&gt; 0.2</div>
+              <div className="text-xs sm:text-sm text-red-700 dark:text-red-300">Tortuosidad Alta</div>
               <div className="text-xs text-red-600 dark:text-red-400">Sugestivo de MGD</div>
             </div>
           </div>

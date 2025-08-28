@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, CameraOff, Download, Trash2, AlertCircle, CheckCircle } from "lucide-react";
+import { Camera, CameraOff, Download, Trash2, AlertCircle, CheckCircle, Video, AlertTriangle, X, Circle, CheckCircle2, Lightbulb, RefreshCw, Search, ClipboardList } from "lucide-react";
 
 interface CameraCaptureProps {
   onPhotoCapture?: (photoData: string) => void;
@@ -48,15 +48,15 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
   // Get available IR camera devices
   const getAvailableDevices = useCallback(async () => {
     try {
-      console.log('🔍 Buscando módulos IR especializados...');
+      console.log('Buscando módulos IR especializados...');
       
       // First, try to get user media to trigger permissions
       try {
         const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
         testStream.getTracks().forEach(track => track.stop());
-        console.log('✅ Permisos de cámara otorgados');
+        console.log('Permisos de cámara otorgados');
       } catch (permError) {
-        console.log('⚠️ Error de permisos:', permError);
+        console.log('Error de permisos:', permError);
       }
 
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -100,13 +100,13 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       // Log all video devices for debugging
       const allVideoDevicesList = devices.filter(device => device.kind === 'videoinput');
       setAllVideoDevices(allVideoDevicesList);
-      console.log('📹 Todos los dispositivos de video detectados:', allVideoDevicesList.map(d => ({
+      console.log('Todos los dispositivos de video detectados:', allVideoDevicesList.map(d => ({
         label: d.label,
         deviceId: d.deviceId.substring(0, 8) + '...',
         groupId: d.groupId
       })));
       
-      console.log('🔴 Módulos IR especializados detectados:', irDevices.map(d => ({
+      console.log('Módulos IR especializados detectados:', irDevices.map(d => ({
         label: d.label,
         deviceId: d.deviceId.substring(0, 8) + '...',
         groupId: d.groupId
@@ -127,7 +127,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       });
       
       if (excludedDevices.length > 0) {
-        console.log('❌ Dispositivos excluidos (cámaras virtuales):', excludedDevices.map(d => ({
+        console.log('Dispositivos excluidos (cámaras virtuales):', excludedDevices.map(d => ({
           label: d.label,
           reason: 'Cámara virtual detectada'
         })));
@@ -142,8 +142,8 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
 
       // Show detailed error if no IR devices found
       if (irDevices.length === 0) {
-        console.log('❌ No se encontraron módulos IR especializados');
-        console.log('💡 Verifica que:');
+        console.log('No se encontraron módulos IR especializados');
+        console.log('Verifica que:');
         console.log('   - El módulo IR esté conectado por USB');
         console.log('   - Los drivers estén instalados correctamente');
         console.log('   - El dispositivo esté encendido');
@@ -152,7 +152,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
         
         // Show what devices were found but excluded
         if (allVideoDevices.length > 0) {
-          console.log('📹 Dispositivos de video encontrados pero excluidos:');
+          console.log('Dispositivos de video encontrados pero excluidos:');
           allVideoDevices.forEach(device => {
             const label = device.label.toLowerCase();
             let reason = 'Dispositivo estándar';
@@ -310,8 +310,8 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       {/* Camera Controls */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
             Captura de Imagen IR - Módulo Especializado
           </CardTitle>
         </CardHeader>
@@ -333,187 +333,223 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                 <SelectValue placeholder={availableDevices.length === 0 ? "No hay módulos IR disponibles" : "Selecciona un módulo IR"} />
               </SelectTrigger>
               <SelectContent>
-                                 {availableDevices.length === 0 ? (
-                   <div className="p-2 text-sm text-muted-foreground">
-                     No hay módulos IR especializados conectados
-                   </div>
-                 ) : (
+                {availableDevices.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No hay módulos IR especializados conectados
+                  </div>
+                ) : (
                   availableDevices.map((device) => (
-                                         <SelectItem key={device.deviceId} value={device.deviceId}>
-                       {device.label && device.label.trim() !== ''
-                         ? device.label
-                         : `Módulo IR ${device.deviceId.slice(0, 8)}`}
-                     </SelectItem>
+                    <SelectItem key={device.deviceId} value={device.deviceId}>
+                      {device.label && device.label.trim() !== ''
+                        ? device.label
+                        : `Módulo IR ${device.deviceId.slice(0, 8)}`}
+                    </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={getAvailableDevices}
-                className="flex-1 border-border"
+                className="flex-1 border-border text-xs sm:text-sm"
               >
-                🔄 Actualizar Dispositivos
+                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Actualizar Dispositivos
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowDeviceInfo(!showDeviceInfo)}
-                className="flex-1 border-border"
+                className="flex-1 border-border text-xs sm:text-sm"
               >
-                {showDeviceInfo ? 'Ocultar Info' : '🔍 Ver Info Dispositivos'}
+                {showDeviceInfo ? 'Ocultar Info' : (
+                  <>
+                    <Search className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    Ver Info Dispositivos
+                  </>
+                )}
               </Button>
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAllDevices(!showAllDevices)}
-                className="flex-1 border-border"
+                className="flex-1 border-border text-xs sm:text-sm"
               >
-                {showAllDevices ? 'Ocultar Todos' : '📹 Ver Todos'}
-              </Button>
-            </div>
-                         <div className="text-xs text-muted-foreground">
-               💡 <strong>Si no detecta tu módulo IR:</strong>
-               <br />• Abre DevTools (F12) → Console para ver logs
-               <br />• Verifica que el módulo IR esté conectado por USB
-               <br />• Asegúrate de que los drivers estén instalados
-               <br />• Prueba diferentes puertos USB
-             </div>
-
-                      {/* Device Information */}
-          {showDeviceInfo && (
-            <Card className="mt-4 border-border">
-              <CardHeader>
-                                 <CardTitle className="text-sm">📋 Información de Módulos IR Detectados</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                                 {availableDevices.length === 0 ? (
-                   <div className="text-center py-4 text-muted-foreground">
-                     <p>No hay módulos IR especializados conectados</p>
-                     <p className="text-xs mt-1">
-                       Conecta tu módulo IR USB para meibografía
-                     </p>
-                   </div>
-                ) : (
+                {showAllDevices ? 'Ocultar Todos' : (
                   <>
-                                         <div className="text-xs text-muted-foreground mb-2">
-                       💡 <strong>Módulos IR compatibles:</strong>
-                       <br />• 🔴 <strong>Módulos IR USB</strong> - Para meibografía profesional
-                       <br />• 🔴 <strong>Cámaras infrarrojas</strong> - Especializadas en IR
-                       <br />• 🔴 <strong>Dispositivos médicos</strong> - Para análisis clínico
-                       <br />• 🔴 <strong>Cámaras especializadas</strong> - Con filtros IR
-                       <br />
-                       <strong>📋 Características esperadas:</strong>
-                       <br />• <strong>Resolución:</strong> 1920x1080 o superior
-                       <br />• <strong>FPS:</strong> 30fps para captura fluida
-                       <br />• <strong>Conectividad:</strong> USB 2.0/3.0
-                       <br />• <strong>Drivers:</strong> Plug & Play
-                     </div>
-                    {availableDevices.map((device, index) => (
-                      <div key={device.deviceId} className="p-2 bg-muted rounded text-xs">
-                                                 <div className="flex justify-between items-center">
-                           <span className="font-medium">
-                             {device.label || `Módulo IR ${index + 1}`}
-                           </span>
-                          <span className="text-muted-foreground">
-                            {selectedDeviceId === device.deviceId ? '✅ Seleccionada' : ''}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground mt-1">
-                          ID: {device.deviceId.substring(0, 12)}...
-                          <br />
-                          Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
-                        </div>
-                                                 <div className="mt-1">
-                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
-                             🔴 Módulo IR Especializado
-                           </span>
-                         </div>
-                      </div>
-                    ))}
+                    <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    Ver Todos
                   </>
                 )}
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* All Devices Information (for debugging) */}
-          {showAllDevices && (
-            <Card className="mt-4 border-border">
-              <CardHeader>
-                <CardTitle className="text-sm">📹 Todos los Dispositivos de Video Detectados</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-xs text-muted-foreground mb-2">
-                  💡 <strong>Esta lista muestra TODOS los dispositivos, incluyendo los excluidos:</strong>
-                  <br />• 🔴 <strong>Verde:</strong> Módulos IR especializados (compatibles)
-                  <br />• ❌ <strong>Rojo:</strong> Cámaras virtuales y no compatibles (excluidas)
-                  <br />• ⚠️ <strong>Amarillo:</strong> Dispositivos estándar (no especializados)
-                </div>
-                
-                {allVideoDevices.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p>No se pudieron obtener los dispositivos</p>
-                  </div>
-                ) : (
-                  allVideoDevices.map((device, index) => {
-                    const label = device.label.toLowerCase();
-                    let status = 'standard';
-                    let statusText = 'Dispositivo Estándar';
-                    let statusColor = 'bg-yellow-100 text-yellow-800';
-                    
-                    if (label.includes('obs') || label.includes('virtual') || 
-                        label.includes('screen capture') || label.includes('desktop')) {
-                      status = 'excluded';
-                      statusText = 'Cámara Virtual (Excluida)';
-                      statusColor = 'bg-red-100 text-red-800';
-                    } else if (availableDevices.some(d => d.deviceId === device.deviceId)) {
-                      status = 'compatible';
-                      statusText = 'Módulo IR Especializado';
-                      statusColor = 'bg-green-100 text-green-800';
-                    }
-                    
-                    return (
-                      <div key={device.deviceId} className="p-2 bg-muted rounded text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">
-                            {device.label || `Dispositivo ${index + 1}`}
-                          </span>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusColor}`}>
-                            {status === 'compatible' ? '🔴' : status === 'excluded' ? '❌' : '⚠️'} {statusText}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground mt-1">
-                          ID: {device.deviceId.substring(0, 12)}...
-                          <br />
-                          Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
-                        </div>
+              </Button>
+            </div>
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              <strong className="flex items-center gap-2">
+                <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                Si no detecta tu módulo IR:
+              </strong>
+              <br />• Abre DevTools (F12) → Console para ver logs
+              <br />• Verifica que el módulo IR esté conectado por USB
+              <br />• Asegúrate de que los drivers estén instalados
+              <br />• Prueba diferentes puertos USB
+            </div>
+
+            {/* Device Information */}
+            {showDeviceInfo && (
+              <Card className="mt-4 border-border">
+                <CardHeader>
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
+                    <ClipboardList className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Información de Módulos IR Detectados
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {availableDevices.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-xs sm:text-sm">No hay módulos IR especializados conectados</p>
+                      <p className="text-xs mt-1">
+                        Conecta tu módulo IR USB para meibografía
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        <strong className="flex items-center gap-2">
+                          <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                          Módulos IR compatibles:
+                        </strong>
+                        <br />• <Circle className="h-3 w-3 inline text-red-500" /> <strong>Módulos IR USB</strong> - Para meibografía profesional
+                        <br />• <Circle className="h-3 w-3 inline text-red-500" /> <strong>Cámaras infrarrojas</strong> - Especializadas en IR
+                        <br />• <Circle className="h-3 w-3 inline text-red-500" /> <strong>Dispositivos médicos</strong> - Para análisis clínico
+                        <br />• <Circle className="h-3 w-3 inline text-red-500" /> <strong>Cámaras especializadas</strong> - Con filtros IR
+                        <br />
+                        <strong>Características esperadas:</strong>
+                        <br />• <strong>Resolución:</strong> 1920x1080 o superior
+                        <br />• <strong>FPS:</strong> 30fps para captura fluida
+                        <br />• <strong>Conectividad:</strong> USB 2.0/3.0
+                        <br />• <strong>Drivers:</strong> Plug & Play
                       </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          )}
+                      {availableDevices.map((device, index) => (
+                        <div key={device.deviceId} className="p-2 bg-muted rounded text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">
+                              {device.label || `Módulo IR ${index + 1}`}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {selectedDeviceId === device.deviceId ? (
+                                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
+                              ) : ''}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground mt-1">
+                            ID: {device.deviceId.substring(0, 12)}...
+                            <br />
+                            Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
+                          </div>
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                              <Circle className="h-3 w-3 inline text-green-500 mr-1" />
+                              Módulo IR Especializado
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* All Devices Information (for debugging) */}
+            {showAllDevices && (
+              <Card className="mt-4 border-border">
+                <CardHeader>
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
+                    <Video className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Todos los Dispositivos de Video Detectados
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    <strong className="flex items-center gap-2">
+                      <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                      Esta lista muestra TODOS los dispositivos, incluyendo los excluidos:
+                    </strong>
+                    <br />• <Circle className="h-3 w-3 inline text-green-500" /> <strong>Verde:</strong> Módulos IR especializados (compatibles)
+                    <br />• <X className="h-3 w-3 inline text-red-500" /> <strong>Rojo:</strong> Cámaras virtuales y no compatibles (excluidas)
+                    <br />• <AlertTriangle className="h-3 w-3 inline text-yellow-500" /> <strong>Amarillo:</strong> Dispositivos estándar (no especializados)
+                  </div>
+                  
+                  {allVideoDevices.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-xs sm:text-sm">No se pudieron obtener los dispositivos</p>
+                    </div>
+                  ) : (
+                    allVideoDevices.map((device, index) => {
+                      const label = device.label.toLowerCase();
+                      let status = 'standard';
+                      let statusText = 'Dispositivo Estándar';
+                      let statusColor = 'bg-yellow-100 text-yellow-800';
+                      
+                      if (label.includes('obs') || label.includes('virtual') || 
+                          label.includes('screen capture') || label.includes('desktop')) {
+                        status = 'excluded';
+                        statusText = 'Cámara Virtual (Excluida)';
+                        statusColor = 'bg-red-100 text-red-800';
+                      } else if (availableDevices.some(d => d.deviceId === device.deviceId)) {
+                        status = 'compatible';
+                        statusText = 'Módulo IR Especializado';
+                        statusColor = 'bg-green-100 text-green-800';
+                      }
+                      
+                      return (
+                        <div key={device.deviceId} className="p-2 bg-muted rounded text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">
+                              {device.label || `Dispositivo ${index + 1}`}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${statusColor}`}>
+                              {status === 'compatible' ? (
+                                <Circle className="h-3 w-3 text-green-500" />
+                              ) : status === 'excluded' ? (
+                                <X className="h-3 w-3 text-red-500" />
+                              ) : (
+                                <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                              )} {statusText}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground mt-1">
+                            ID: {device.deviceId.substring(0, 12)}...
+                            <br />
+                            Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Camera Controls */}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {!isStreaming ? (
               <Button
                 onClick={startCamera}
                 disabled={!selectedDeviceId || availableDevices.length === 0 || selectedDeviceId === 'no-devices'}
+                className="text-xs sm:text-sm"
               >
-                                 <Camera className="mr-2 h-4 w-4" />
-                 Iniciar Módulo IR
+                <Camera className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                Iniciar Módulo IR
               </Button>
             ) : (
-              <Button variant="destructive" onClick={stopCamera}>
-                                 <CameraOff className="mr-2 h-4 w-4" />
-                 Detener Módulo IR
+              <Button variant="destructive" onClick={stopCamera} className="text-xs sm:text-sm">
+                <CameraOff className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                Detener Módulo IR
               </Button>
             )}
 
@@ -521,42 +557,27 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
               onClick={capturePhoto}
               disabled={!isStreaming || isCapturing}
               variant="secondary"
+              className="text-xs sm:text-sm"
             >
               {isCapturing ? (
                 <>
-                  <AlertCircle className="mr-2 h-4 w-4 animate-spin" />
+                  <AlertCircle className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                   Capturando...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
+                  <CheckCircle className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                   Capturar Foto
                 </>
               )}
             </Button>
           </div>
 
-                     {/* Connection Tips */}
-           {availableDevices.length === 0 && (
-             <Alert className="border-red-200 bg-red-50">
-               <AlertCircle className="h-4 w-4 text-red-600" />
-               <AlertDescription className="text-red-800">
-                 <strong>🔴 Para conectar tu módulo IR:</strong>
-                 <br />1. Conecta el módulo IR por USB
-                 <br />2. Espera 5-10 segundos para que Windows lo detecte
-                 <br />3. Haz clic en &quot;🔄 Actualizar Dispositivos&quot;
-                 <br />4. Verifica que los drivers estén instalados
-                 <br />
-                 <strong>🔍 Debug:</strong> Abre DevTools (F12) → Console para ver logs detallados
-               </AlertDescription>
-             </Alert>
-           )}
-
           {/* Error Display */}
           {error && (
             <Alert className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">{error}</AlertDescription>
+              <AlertDescription className="text-red-800 text-xs sm:text-sm">{error}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -566,22 +587,22 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       {isStreaming && (
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Vista Previa del Módulo IR</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Vista Previa del Módulo IR</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative">
               <video
                 ref={videoRef}
-                className="w-full max-h-96 bg-black rounded-lg"
+                className="w-full max-h-64 sm:max-h-96 bg-black rounded-lg"
                 playsInline
                 muted
                 autoPlay
               />
               <canvas ref={canvasRef} className="hidden" />
             </div>
-                         <p className="text-sm text-muted-foreground mt-2 text-center">
-               Asegúrate de que el párpado esté bien enfocado y centrado para análisis de meibografía
-             </p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2 text-center">
+              Asegúrate de que el párpado esté bien enfocado y centrado para análisis de meibografía
+            </p>
           </CardContent>
         </Card>
       )}
@@ -590,33 +611,33 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       {capturedPhotos.length > 0 && (
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Imágenes IR Capturadas ({capturedPhotos.length})</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Imágenes IR Capturadas ({capturedPhotos.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {capturedPhotos.map((photo) => (
                 <div key={photo.id} className="relative group border rounded-lg p-2">
-                                     <img
-                     src={photo.dataUrl}
-                     alt={`Imagen IR ${photo.timestamp.toLocaleTimeString()}`}
-                     className="w-full h-32 object-cover rounded"
-                   />
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <img
+                    src={photo.dataUrl}
+                    alt={`Imagen IR ${photo.timestamp.toLocaleTimeString()}`}
+                    className="w-full h-24 sm:h-32 object-cover rounded"
+                  />
+                  <div className="absolute top-1 right-1 sm:top-2 sm:right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => downloadPhoto(photo)}
-                      className="h-6 w-6 p-0 border-border"
+                      className="h-5 w-5 sm:h-6 sm:w-6 p-0 border-border"
                     >
-                      <Download className="h-3 w-3" />
+                      <Download className="h-2 w-2 sm:h-3 sm:w-3" />
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => deletePhoto(photo.id)}
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 sm:h-6 sm:w-6 p-0"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-2 w-2 sm:h-3 sm:w-3" />
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 text-center">

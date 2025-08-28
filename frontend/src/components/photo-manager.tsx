@@ -17,7 +17,8 @@ import {
   BarChart3,
   Image as ImageIcon,
   Loader2,
-  Brain
+  Brain,
+  Lightbulb
 } from "lucide-react";
 import { CameraCapture } from "./camera-capture";
 import { photoStorage, StoredPhoto } from "@/lib/photo-storage";
@@ -151,7 +152,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
       const formData = new FormData();
       formData.append("file", fileToAnalyze);
 
-      console.log('🔍 Enviando imagen para análisis...');
+      console.log('Enviando imagen para análisis...');
       const response2 = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
@@ -192,7 +193,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
       }
 
       const result = await response2.json();
-      console.log('✅ Análisis completado exitosamente:', result);
+      console.log('Análisis completado exitosamente:', result);
       
       // Ensure the result has the required properties for AnalysisResults interface
       const analysisResult: AnalysisResults = {
@@ -251,7 +252,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
       setAnalysisProgress(100);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error desconocido";
-      console.error('❌ Error durante el análisis:', errorMessage);
+      console.error('Error durante el análisis:', errorMessage);
       setError(errorMessage);
     } finally {
       setIsAnalyzing(false);
@@ -298,15 +299,15 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
   }, [loadPhotos]);
 
   return (
-    <div className="space-y-6 overflow-visible">
+    <div className="space-y-4 sm:space-y-6 overflow-visible">
       <Tabs defaultValue="capture" className="w-full overflow-visible">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="capture" className="flex items-center gap-2">
-            <Camera className="h-4 w-4" />
+          <TabsTrigger value="capture" className="flex items-center gap-2 text-xs sm:text-sm">
+            <Camera className="h-3 w-3 sm:h-4 sm:w-4" />
             Capturar
           </TabsTrigger>
-          <TabsTrigger value="gallery" className="flex items-center gap-2">
-            <ImageIcon className="h-4 w-4" />
+          <TabsTrigger value="gallery" className="flex items-center gap-2 text-xs sm:text-sm">
+            <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             Galería ({storedPhotos.length})
           </TabsTrigger>
         </TabsList>
@@ -319,9 +320,9 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
           {/* Gallery Header */}
           <Card className="border-border">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileImage className="h-5 w-5" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <FileImage className="h-4 w-4 sm:h-5 sm:w-5" />
                   Fotos Guardadas ({storedPhotos.length})
                 </CardTitle>
                 <div className="flex gap-2">
@@ -330,9 +331,9 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                     size="sm"
                     onClick={exportAllPhotos}
                     disabled={storedPhotos.length === 0}
-                    className="border-border"
+                    className="border-border text-xs sm:text-sm"
                   >
-                    <Download className="mr-2 h-4 w-4" />
+                    <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                     Exportar
                   </Button>
                   <Button
@@ -340,8 +341,9 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                     size="sm"
                     onClick={clearAllPhotos}
                     disabled={storedPhotos.length === 0}
+                    className="text-xs sm:text-sm"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                     Limpiar Todo
                   </Button>
                 </div>
@@ -365,67 +367,70 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                   {/* Analysis functionality info */}
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
                     <div className="flex items-start gap-2">
-                                             <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                       <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <p className="font-medium mb-1">💡 Nueva Funcionalidad: Análisis Directo</p>
+                      <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
+                        <p className="font-medium mb-1 flex items-center gap-2">
+                          <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                          Nueva Funcionalidad: Análisis Directo
+                        </p>
                         <p>Ahora puedes analizar cualquier foto guardada directamente desde la galería:</p>
                         <ul className="list-disc list-inside mt-1 space-y-1">
-                          <li>Haz clic en <strong>&quot;Analizar&quot;</strong> en cualquier foto para procesarla</li>
+                          <li>Haz clic en <strong>"Analizar"</strong> en cualquier foto para procesarla</li>
                           <li>Los resultados se guardan automáticamente con la foto</li>
-                          <li>Las fotos analizadas muestran un badge verde &quot;Analizada&quot;</li>
+                          <li>Las fotos analizadas muestran un badge verde "Analizada"</li>
                         </ul>
                       </div>
                     </div>
                   </div>
 
                   {storedPhotos.length === 0 ? (
-                    <div className="text-center py-12">
-                      <FileImage className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No hay fotos guardadas</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Captura algunas fotos usando la pestaña &quot;Capturar&quot;
+                    <div className="text-center py-8 sm:py-12">
+                      <FileImage className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-base sm:text-lg font-medium mb-2">No hay fotos guardadas</h3>
+                      <p className="text-muted-foreground mb-4 text-sm">
+                        Captura algunas fotos usando la pestaña "Capturar"
                       </p>
                       <Button onClick={() => {
                         const captureTab = document.querySelector('[value="capture"]') as HTMLButtonElement;
                         if (captureTab) captureTab.click();
-                      }}>
-                        <Camera className="mr-2 h-4 w-4" />
+                      }} size="sm">
+                        <Camera className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Ir a Capturar
                       </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {storedPhotos.map((photo) => (
-                                            <Card
-                      key={photo.id}
-                      className={`cursor-pointer transition-all hover:shadow-md border-border ${
-                        selectedPhoto?.id === photo.id ? 'ring-2 ring-primary' : ''
-                      }`}
-                      onClick={() => handlePhotoSelect(photo)}
-                    >
-                          <CardContent className="p-4">
+                        <Card
+                          key={photo.id}
+                          className={`cursor-pointer transition-all hover:shadow-md border-border ${
+                            selectedPhoto?.id === photo.id ? 'ring-2 ring-primary' : ''
+                          }`}
+                          onClick={() => handlePhotoSelect(photo)}
+                        >
+                          <CardContent className="p-3 sm:p-4">
                             <div className="relative mb-3">
                               <img
                                 src={photo.dataUrl}
                                 alt={`Foto ${photo.timestamp.toLocaleDateString()}`}
-                                className="w-full h-32 object-cover rounded-lg"
+                                className="w-full h-24 sm:h-32 object-cover rounded-lg"
                               />
                               {photo.analysisResults && (
-                                <Badge className="absolute top-2 right-2 bg-green-500">
-                                  <BarChart3 className="h-3 w-3 mr-1" />
+                                <Badge className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-green-500 text-xs">
+                                  <BarChart3 className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
                                   Analizada
                                 </Badge>
                               )}
                               {isAnalyzing && selectedPhoto?.id === photo.id && (
-                                <Badge className="absolute top-2 right-2 bg-blue-500 animate-pulse">
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                <Badge className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-blue-500 animate-pulse text-xs">
+                                  <Loader2 className="h-2 w-2 sm:h-3 sm:w-3 animate-spin" />
                                   Analizando
                                 </Badge>
                               )}
                             </div>
 
                             <div className="space-y-2">
-                              <p className="text-sm font-medium">
+                              <p className="text-xs sm:text-sm font-medium">
                                 {photo.timestamp.toLocaleDateString()} {photo.timestamp.toLocaleTimeString()}
                               </p>
 
@@ -436,52 +441,52 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                                 </div>
                               )}
 
-                                                        <div className="grid grid-cols-2 gap-1">
-                            {!photo.analysisResults && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedPhoto(photo);
-                                  analyzeSelectedPhoto();
-                                }}
-                                className="w-full border-border"
-                                disabled={isAnalyzing}
-                              >
-                                {isAnalyzing && selectedPhoto?.id === photo.id ? (
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                ) : (
-                                  <Brain className="h-3 w-3 mr-1" />
+                              <div className="grid grid-cols-2 gap-1">
+                                {!photo.analysisResults && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPhoto(photo);
+                                      analyzeSelectedPhoto();
+                                    }}
+                                    className="w-full border-border text-xs"
+                                    disabled={isAnalyzing}
+                                  >
+                                    {isAnalyzing && selectedPhoto?.id === photo.id ? (
+                                      <Loader2 className="h-2 w-2 sm:h-3 sm:w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Brain className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                    )}
+                                    Analizar
+                                  </Button>
                                 )}
-                                Analizar
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                downloadPhoto(photo);
-                              }}
-                              className="w-full border-border"
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              Descargar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deletePhoto(photo.id);
-                              }}
-                              className="w-full"
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Eliminar
-                            </Button>
-                          </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadPhoto(photo);
+                                  }}
+                                  className="w-full border-border text-xs"
+                                >
+                                  <Download className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                  Descargar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deletePhoto(photo.id);
+                                  }}
+                                  className="w-full text-xs"
+                                >
+                                  <Trash2 className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                                  Eliminar
+                                </Button>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -497,8 +502,8 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
           {selectedPhoto && (
             <Card className="border-border">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                   Foto Seleccionada
                 </CardTitle>
               </CardHeader>
@@ -507,13 +512,13 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                   <img
                     src={selectedPhoto.dataUrl}
                     alt="Foto seleccionada"
-                    className="w-full max-h-96 object-contain rounded-lg border"
+                    className="w-full max-h-64 sm:max-h-96 object-contain rounded-lg border"
                   />
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="font-medium">Fecha:</p>
-                      <p className="text-muted-foreground">
+                      <p className="text-muted-foreground text-xs sm:text-sm">
                         {selectedPhoto.timestamp.toLocaleDateString()} {selectedPhoto.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
@@ -521,7 +526,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                     {selectedPhoto.analysisResults ? (
                       <div className="space-y-2">
                         <p className="font-medium">Resultados del Análisis:</p>
-                        <div className="text-muted-foreground">
+                        <div className="text-muted-foreground text-xs sm:text-sm">
                           <p>Tortuosidad promedio: {selectedPhoto.analysisResults.avgTortuosity.toFixed(3)}</p>
                           <p>Número de glándulas: {selectedPhoto.analysisResults.numGlands}</p>
                           <p>Glándulas analizadas: {selectedPhoto.analysisResults.individualTortuosities.length}</p>
@@ -553,12 +558,15 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                         <AlertCircle className="h-4 w-4 text-red-600" />
                         <AlertDescription className="text-red-800">
                           <div className="space-y-2">
-                            <p className="font-medium">{error}</p>
+                            <p className="font-medium text-sm">{error}</p>
                             
                             {/* Helpful tips for common errors */}
                             {error.includes('503') && (
-                              <div className="text-sm bg-red-100 p-2 rounded">
-                                <p className="font-medium">💡 Solución:</p>
+                              <div className="text-xs sm:text-sm bg-red-100 p-2 rounded">
+                                <p className="font-medium flex items-center gap-2">
+                                  <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  Solución:
+                                </p>
                                 <ul className="list-disc list-inside mt-1">
                                   <li>Los modelos de IA están cargando</li>
                                   <li>Espera 10-30 segundos y vuelve a intentar</li>
@@ -568,8 +576,11 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                             )}
                             
                             {error.includes('500') && (
-                              <div className="text-sm bg-red-100 p-2 rounded">
-                                <p className="font-medium">💡 Solución:</p>
+                              <div className="text-xs sm:text-sm bg-red-100 p-2 rounded">
+                                <p className="font-medium flex items-center gap-2">
+                                  <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  Solución:
+                                </p>
                                 <ul className="list-disc list-inside mt-1">
                                   <li>Error interno del servidor</li>
                                   <li>Intenta con una imagen diferente</li>
@@ -579,9 +590,12 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                             )}
                             
                             {error.includes('413') && (
-                              <div className="text-sm bg-red-100 p-2 rounded">
-                                <p className="font-medium">💡 Solución:</p>
-                                <ul className="list-disc list-inside mt-1">
+                              <div className="text-xs sm:text-sm bg-red-100 p-2 rounded">
+                                <p className="font-medium flex items-center gap-2">
+                                  <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  Solución:
+                                </p>
+                                <ul className="list-inside mt-1">
                                   <li>La imagen es demasiado grande</li>
                                   <li>Usa una imagen de menor resolución</li>
                                   <li>Recomendado: máximo 1920x1080</li>
@@ -596,45 +610,48 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                     {/* Analysis Results */}
                     {analysisResults && (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <h4 className="font-medium text-green-800 mb-2">✅ Análisis Completado</h4>
-                        <div className="text-sm text-green-700 space-y-1">
+                        <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2 text-sm">
+                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                          Análisis Completado
+                        </h4>
+                        <div className="text-xs sm:text-sm text-green-700 space-y-1">
                           <p>Tortuosidad promedio: {analysisResults.data.avg_tortuosity.toFixed(3)}</p>
                           <p>Número de glándulas: {analysisResults.data.num_glands}</p>
                           <p>Glándulas analizadas: {analysisResults.data.individual_tortuosities.length}</p>
                         </div>
                         <div className="mt-3 pt-3 border-t border-green-200">
-                                                  <Button 
-                          onClick={() => onTabChange?.('results')}
-                          size="sm"
-                          className="w-full bg-green-600 hover:bg-green-700 text-white border-border"
-                        >
-                            <BarChart3 className="h-4 w-4 mr-2" />
+                          <Button 
+                            onClick={() => onTabChange?.('results')}
+                            size="sm"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white border-border text-xs sm:text-sm"
+                          >
+                            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                             Ver Resultados Completos
                           </Button>
                         </div>
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button 
                         onClick={analyzeSelectedPhoto} 
                         disabled={isAnalyzing}
-                        className="flex-1 border-border"
+                        className="flex-1 border-border text-xs sm:text-sm"
                       >
                         {isAnalyzing ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                             Analizando...
                           </>
                         ) : (
                           <>
-                            <Brain className="mr-2 h-4 w-4" />
+                            <Brain className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                             Analizar Esta Foto
                           </>
                         )}
                       </Button>
-                      <Button variant="outline" onClick={() => downloadPhoto(selectedPhoto)} className="border-border">
-                        <Download className="mr-2 h-4 w-4" />
+                      <Button variant="outline" onClick={() => downloadPhoto(selectedPhoto)} className="border-border text-xs sm:text-sm">
+                        <Download className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Descargar
                       </Button>
                     </div>
