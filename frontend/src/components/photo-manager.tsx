@@ -375,9 +375,9 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                         </p>
                         <p>Ahora puedes analizar cualquier foto guardada directamente desde la galería:</p>
                         <ul className="list-disc list-inside mt-1 space-y-1">
-                          <li>Haz clic en <strong>"Analizar"</strong> en cualquier foto para procesarla</li>
+                          <li>Haz clic en <strong>&quot;Analizar&quot;</strong> en cualquier foto para procesarla</li>
                           <li>Los resultados se guardan automáticamente con la foto</li>
-                          <li>Las fotos analizadas muestran un badge verde "Analizada"</li>
+                          <li>Las fotos analizadas muestran un badge verde &quot;Analizada&quot;</li>
                         </ul>
                       </div>
                     </div>
@@ -388,7 +388,7 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
                       <FileImage className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-base sm:text-lg font-medium mb-2">No hay fotos guardadas</h3>
                       <p className="text-muted-foreground mb-4 text-sm">
-                        Captura algunas fotos usando la pestaña "Capturar"
+                        Captura algunas fotos usando la pestaña &quot;Capturar&quot;
                       </p>
                       <Button onClick={() => {
                         const captureTab = document.querySelector('[value="capture"]') as HTMLButtonElement;

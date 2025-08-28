@@ -314,7 +314,7 @@ export default function DashboardPage() {
       className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${
         active 
           ? 'bg-primary text-primary-foreground shadow-sm' 
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          : 'text-muted-foreground hover:text-white hover:bg-muted'
       }`}
     >
       <Icon className="h-5 w-5" />
