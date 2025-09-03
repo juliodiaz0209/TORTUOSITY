@@ -111,7 +111,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
         .filter(device => device.deviceId && device.deviceId.trim() !== '')
         .filter(device => {
           const label = device.label.toLowerCase();
-
+          
           // Exclude virtual cameras and OBS
           if (
             label.includes('obs') ||
@@ -124,7 +124,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
           ) {
             return false;
           }
-
+          
           // Include specialized IR and medical devices (highest priority)
           const isSpecializedIR = (
             label.includes('ir') ||
@@ -156,7 +156,24 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
             label.includes('integrated') === false // Exclude built-in cameras
           );
 
-          return isSpecializedIR || isExternalUSB;
+          // For mobile devices, be more permissive with external cameras
+          const isMobileExternal = isMobile && (
+            label.includes('usb') ||
+            label.includes('external') ||
+            label.includes('hd camera') ||
+            label.includes('video camera') ||
+            /^camera\s*\d*$/.test(label) ||
+            /^webcam\s*\d*$/.test(label) ||
+            // Include any camera that's not the built-in ones
+            (label !== 'camera' && 
+             !label.includes('front') && 
+             !label.includes('back') && 
+             !label.includes('rear') &&
+             !label.includes('facetime') &&
+             !label.includes('integrated'))
+          );
+
+          return isSpecializedIR || isExternalUSB || isMobileExternal;
         });
 
       // Log all video devices for debugging
@@ -198,7 +215,9 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
       // Get fallback devices (all non-virtual cameras) for mobile compatibility
       const fallbackDevicesList = allVideoDevicesList.filter(device => {
         const label = device.label.toLowerCase();
-        return !(
+        
+        // Exclude virtual cameras
+        const isVirtual = (
           label.includes('obs') ||
           label.includes('virtual') ||
           label.includes('virtual camera') ||
@@ -207,6 +226,21 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
           label.includes('monitor') ||
           label.includes('display')
         );
+
+        // For mobile, also exclude built-in cameras but include external ones
+        if (isMobile) {
+          const isBuiltIn = (
+            label.includes('front') ||
+            label.includes('back') ||
+            label.includes('rear') ||
+            label.includes('facetime') ||
+            label.includes('integrated') ||
+            label === 'camera'
+          );
+          return !isVirtual && !isBuiltIn;
+        }
+
+        return !isVirtual;
       });
 
       setAvailableDevices(irDevices);
@@ -499,11 +533,11 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
   return (
     <div className="space-y-4 overflow-visible">
       {/* Camera Controls */}
-                <Card className="border-border">
-            <CardHeader>
+      <Card className="border-border">
+        <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
-                Captura de Imagen IR - Módulo Especializado
+            Captura de Imagen IR - Módulo Especializado
                 {(() => {
                   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                   return (
@@ -526,8 +560,8 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                     </span>
                   );
                 })()}
-              </CardTitle>
-            </CardHeader>
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4 overflow-visible">
           {/* Device Selection */}
           <div className="flex flex-col gap-2">
@@ -598,7 +632,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
           </>
         )}
               </Button>
-                        </div>
+            </div>
 
             {/* Auto-restart toggle */}
             <div className="flex items-center justify-center gap-2 mt-2">
@@ -676,16 +710,16 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
                           <br />
                           Grupo: {device.groupId ? device.groupId.substring(0, 8) + '...' : 'N/A'}
                         </div>
-                                                                     <div className="mt-1">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                        <Circle className="h-3 w-3 inline text-green-500 mr-1" />
-                        Módulo IR Especializado
+                                                 <div className="mt-1">
+                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                             <Circle className="h-3 w-3 inline text-green-500 mr-1" />
+                Módulo IR Especializado
                       </span>
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 ml-2">
                         <CheckCircle className="h-3 w-3 inline text-blue-500 mr-1" />
                         Compatible con Laptop
-                      </span>
-                    </div>
+                           </span>
+                         </div>
                       </div>
                     ))}
                   </>
@@ -747,7 +781,7 @@ export function CameraCapture({ onPhotoCapture }: CameraCaptureProps) {
               </CardContent>
             </Card>
           )}
-
+          
           {/* All Devices Information (for debugging) */}
           {showAllDevices && (
             <Card className="mt-4 border-border">
