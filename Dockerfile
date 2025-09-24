@@ -22,6 +22,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create necessary directories first
+RUN mkdir -p temp results static
+
 # Copy application code
 COPY . .
 
@@ -35,9 +38,6 @@ RUN if [ -f ".gitattributes" ] && grep -q "\.pth.*lfs" .gitattributes; then \
         curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus_improved%20(6).pth" -o "final_model_tarsus_improved (6).pth" || echo "Failed to download final_model_tarsus_improved (6).pth"; \
         ls -la *.pth; \
     fi
-
-# Create necessary directories
-RUN mkdir -p temp results static
 
 # Debug: List files to verify everything was copied and downloaded
 RUN echo "All files in app directory:" && ls -la
