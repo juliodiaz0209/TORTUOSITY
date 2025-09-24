@@ -70,28 +70,97 @@ def load_maskrcnn_model(model_path="final_model.pth", device=device):
         raise e
 
 # ------------------------------------------------------
-# Definición del modelo UNet con encoder preentrenado
+# Función para redimensionar a tamaño objetivo
+# ------------------------------------------------------
+def resize_to_target_size(img, target_size=(512, 512)):
+    """
+    Redimensiona la imagen al tamaño objetivo usado en entrenamiento.
+    """
+    return img.resize((target_size[1], target_size[0]), Image.BILINEAR)
+
+# ------------------------------------------------------
+# Función para aplicar CLAHE preprocessing
+# ------------------------------------------------------
+def apply_clahe_preprocessing(img_pil):
+    """
+    Aplica CLAHE igual que en entrenamiento
+    """
+    # Convertir a escala de grises
+    img_gray = img_pil.convert("L")
+    img_np_gray = np.array(img_gray)
+
+    # Aplicar CLAHE con parámetros similares al entrenamiento
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    img_eq = clahe.apply(img_np_gray)
+
+    # Replicar a 3 canales como en entrenamiento
+    img_np_rgb = np.stack([img_eq]*3, axis=-1)
+    return Image.fromarray(img_np_rgb, mode='RGB')
+
+# ------------------------------------------------------
+# Definición de Attention Gate (igual que en script.py)
+# ------------------------------------------------------
+class AttentionGate(torch.nn.Module):
+    def __init__(self, F_g, F_l, F_int):
+        super().__init__()
+        self.W_g = torch.nn.Sequential(
+            torch.nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            torch.nn.BatchNorm2d(F_int)
+        )
+        self.W_x = torch.nn.Sequential(
+            torch.nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            torch.nn.BatchNorm2d(F_int)
+        )
+        self.psi = torch.nn.Sequential(
+            torch.nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            torch.nn.Sigmoid()
+        )
+        self.act = torch.nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.act(g1 + x1)
+        psi = self.psi(psi)
+        return x * psi
+
+# ------------------------------------------------------
+# Definición del modelo UNet con encoder preentrenado y Attention Gates
 # ------------------------------------------------------
 class UNetWithPretrainedEncoder(torch.nn.Module):
-    def __init__(self, in_channels=3, out_channels=1):
+    def __init__(self, in_channels=3, out_channels=1, use_attention=True):
         super(UNetWithPretrainedEncoder, self).__init__()
-        self.encoder = models.resnet34(weights=None)
+        self.use_attention = use_attention
+        # Usar los mismos pesos preentrenados que en entrenamiento (script.py)
+        try:
+            self.encoder = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+        except AttributeError:
+            # Compatibilidad con versiones anteriores de torchvision
+            self.encoder = models.resnet34(pretrained=True)
         self.encoder_layers = list(self.encoder.children())
-        self.layer0 = torch.nn.Sequential(*self.encoder_layers[:3])
-        self.layer1 = torch.nn.Sequential(*self.encoder_layers[3:5])
-        self.layer2 = self.encoder_layers[5]
-        self.layer3 = self.encoder_layers[6]
-        self.layer4 = self.encoder_layers[7]
+        self.layer0 = torch.nn.Sequential(*self.encoder_layers[:3])   # Conv1, BN1, ReLU
+        self.layer1 = torch.nn.Sequential(*self.encoder_layers[3:5])    # MaxPool + Layer1
+        self.layer2 = self.encoder_layers[5]                      # Layer2
+        self.layer3 = self.encoder_layers[6]                      # Layer3
+        self.layer4 = self.encoder_layers[7]                      # Layer4
 
+        # Decoder
         self.upconv4 = torch.nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
-        self.conv4 = self.double_conv(512, 256)
+        self.conv4 = self._double_conv(512, 256)
         self.upconv3 = torch.nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
-        self.conv3 = self.double_conv(256, 128)
+        self.conv3 = self._double_conv(256, 128)
         self.upconv2 = torch.nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
-        self.conv2 = self.double_conv(128, 64)
+        self.conv2 = self._double_conv(128, 64)
         self.upconv1 = torch.nn.ConvTranspose2d(64, 64, kernel_size=2, stride=2)
-        self.conv1 = self.double_conv(128, 64)
+        self.conv1 = self._double_conv(128, 64)
         self.final_conv = torch.nn.Conv2d(64, out_channels, kernel_size=1)
+
+        # Attention Gates (igual que en script.py)
+        if self.use_attention:
+            self.att3 = AttentionGate(256, 256, 128)
+            self.att2 = AttentionGate(128, 128, 64)
+            self.att1 = AttentionGate(64, 64, 32)
+            self.att0 = AttentionGate(64, 64, 32)
 
     def forward(self, x):
         x0 = self.layer0(x)
@@ -101,26 +170,30 @@ class UNetWithPretrainedEncoder(torch.nn.Module):
         x4 = self.layer4(x3)
 
         d4 = self.upconv4(x4)
-        d4 = torch.cat((d4, x3), dim=1)
+        skip3 = self.att3(d4, x3) if self.use_attention else x3
+        d4 = torch.cat((d4, skip3), dim=1)
         d4 = self.conv4(d4)
 
         d3 = self.upconv3(d4)
-        d3 = torch.cat((d3, x2), dim=1)
+        skip2 = self.att2(d3, x2) if self.use_attention else x2
+        d3 = torch.cat((d3, skip2), dim=1)
         d3 = self.conv3(d3)
 
         d2 = self.upconv2(d3)
-        d2 = torch.cat((d2, x1), dim=1)
+        skip1 = self.att1(d2, x1) if self.use_attention else x1
+        d2 = torch.cat((d2, skip1), dim=1)
         d2 = self.conv2(d2)
 
         d1 = self.upconv1(d2)
-        d1 = torch.cat((d1, x0), dim=1)
+        skip0 = self.att0(d1, x0) if self.use_attention else x0
+        d1 = torch.cat((d1, skip0), dim=1)
         d1 = self.conv1(d1)
 
         out = self.final_conv(d1)
         out = F.interpolate(out, scale_factor=2, mode='bilinear', align_corners=True)
         return out
 
-    def double_conv(self, in_channels, out_channels):
+    def _double_conv(self, in_channels, out_channels):
         return torch.nn.Sequential(
             torch.nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
             torch.nn.BatchNorm2d(out_channels),
@@ -131,13 +204,22 @@ class UNetWithPretrainedEncoder(torch.nn.Module):
         )
 
 # ------------------------------------------------------
-# Funciones para cargar y predecir con UNet
+# Pipeline de transformaciones: igual que en entrenamiento
+# ------------------------------------------------------
+transform = transforms.Compose([
+    transforms.Lambda(lambda img: resize_to_target_size(img, (512, 512))),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+# ------------------------------------------------------
+# Funciones para cargar y predecir con UNet mejorado
 # ------------------------------------------------------
 def load_unet_model(model_path, device):
     try:
-        model = UNetWithPretrainedEncoder(in_channels=3, out_channels=1)
+        model = UNetWithPretrainedEncoder(in_channels=3, out_channels=1, use_attention=True)
         print(f"Loading UNet model from: {model_path}")
-        
+
         # Try different loading strategies for compatibility
         try:
             # First try: standard loading
@@ -162,9 +244,18 @@ def load_unet_model(model_path, device):
                         print(f"Pickle loading failed: {e4}")
                         # Last resort: try with different map_location
                         state_dict = torch.load(model_path, map_location='cpu')
-        
+
         try:
-            model.load_state_dict(state_dict)
+            # Aceptar formatos: {'model': state_dict, ...} o state_dict plano
+            if isinstance(state_dict, dict) and 'model' in state_dict:
+                model_state_dict = state_dict['model']
+            else:
+                model_state_dict = state_dict
+            missing, unexpected = model.load_state_dict(model_state_dict, strict=False)
+            if missing:
+                print(f"[WARN] Missing keys: {len(missing)} (primeros 5) {missing[:5]}")
+            if unexpected:
+                print(f"[WARN] Unexpected keys: {len(unexpected)} (primeros 5) {unexpected[:5]}")
             model.to(device)
             model.eval()
             print("UNet model loaded successfully")
@@ -176,14 +267,51 @@ def load_unet_model(model_path, device):
         print(f"Error loading UNet model: {e}")
         raise e
 
-def predict_unet_model(model, image_path, device):
+def predict_unet_model(model, image_path, device, use_clahe=True, use_tta=True):
+    """
+    Predice la máscara del tarso usando el modelo mejorado con CLAHE y TTA
+    """
+    # Cargar imagen original
+    original_image = Image.open(image_path).convert("RGB")
+
+    # Aplicar CLAHE preprocessing igual que en entrenamiento
+    if use_clahe:
+        processed_image = apply_clahe_preprocessing(original_image)
+    else:
+        processed_image = original_image
+
+    # Aplicar transformaciones
+    input_tensor = transform(processed_image).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        if use_tta:
+            # Test-Time Augmentation igual que en script.py
+            output = model(input_tensor)
+            # Flip horizontal
+            img_flip = torch.flip(input_tensor, dims=[3])
+            output_flip = model(img_flip)
+            output_flip = torch.flip(output_flip, dims=[3])
+            # Promedio
+            output = (output + output_flip) / 2.0
+        else:
+            output = model(input_tensor)
+
+        output = torch.sigmoid(output)  # Convertir logits a probabilidades
+        prediction = (output > 0.5).float()  # Umbralización
+
+    return original_image, prediction.cpu().squeeze(0)
+
+def predict_unet_model_legacy(model, image_path, device):
+    """
+    Función legacy para compatibilidad con el código existente
+    """
     image = Image.open(image_path).convert("RGB")
-    transform = transforms.Compose([
+    transform_legacy = transforms.Compose([
         transforms.Lambda(resize_to_previous_multiple_of_32),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
-    input_tensor = transform(image).unsqueeze(0).to(device)
+    input_tensor = transform_legacy(image).unsqueeze(0).to(device)
     with torch.no_grad():
         output = model(input_tensor)
         output = torch.sigmoid(output)
@@ -265,12 +393,12 @@ def calculate_gland_tortuosity(mask):
 # ------------------------------------------------------
 def show_combined_result_with_models(image_path, maskrcnn_model, unet_model, device):
     # Usar modelos ya cargados (no cargar de nuevo)
-    
+
     # Predicción de la máscara de instancias (glándulas de Meibomio)
     pred_instance = predict_maskrcnn_model(maskrcnn_model, image_path, device)
 
-    # Predicción de la máscara del contorno del párpado (Tarsus)
-    mask_tarsus = predict_unet_model(unet_model, image_path, device)
+    # Predicción de la máscara del contorno del párpado (Tarsus) con modelo mejorado
+    original_image, mask_tarsus = predict_unet_model(unet_model, image_path, device, use_clahe=True, use_tta=True)
 
     # Redimensionar la máscara de Tarsus a las dimensiones de la máscara de instancias
     mask_tarsus_resized = F.interpolate(mask_tarsus.unsqueeze(0), size=pred_instance.shape, mode='bilinear', align_corners=True)
@@ -354,8 +482,8 @@ def show_combined_result(image_path, maskrcnn_model_path, unet_model_path, devic
     # Predicción de la máscara de instancias (glándulas de Meibomio)
     pred_instance = predict_maskrcnn_model(maskrcnn_model, image_path, device)
 
-    # Predicción de la máscara del contorno del párpado (Tarsus)
-    mask_tarsus = predict_unet_model(unet_model, image_path, device)
+    # Predicción de la máscara del contorno del párpado (Tarsus) con modelo mejorado
+    original_image, mask_tarsus = predict_unet_model(unet_model, image_path, device, use_clahe=True, use_tta=True)
 
     # Redimensionar la máscara de Tarsus a las dimensiones de la máscara de instancias
     mask_tarsus_resized = F.interpolate(mask_tarsus.unsqueeze(0), size=pred_instance.shape, mode='bilinear', align_corners=True)
@@ -451,7 +579,7 @@ def resize_to_previous_multiple_of_32(img):
 # if __name__ == "__main__":
 #     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #     maskrcnn_model_path = "final_model (11).pth"
-#     unet_model_path = "final_model_tarsus.pth"
+#     unet_model_path = "final_model_tarsus_improved (6).pth"  # Usar el modelo mejorado
 #     image_path = "meibomio.jpg"
 
 #     show_combined_result(image_path, maskrcnn_model_path, unet_model_path, device)

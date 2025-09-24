@@ -4,6 +4,9 @@ Test script to verify model loading works correctly
 """
 
 import torch
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import os
 import sys
 
@@ -35,15 +38,15 @@ def test_model_loading():
             except Exception as e2:
                 print(f"✗ Failed to load from {fallback_path}: {e2}")
     
-    # Test UNet loading
+    # Test UNet loading (mejor modelo con attention gates)
     try:
         print("\n--- Testing UNet model loading ---")
-        unet_model = load_unet_model("final_model_tarsus_improved.pth", device)
-        print("✓ UNet model loaded successfully")
+        unet_model = load_unet_model("final_model_tarsus_improved (6).pth", device)
+        print("✓ UNet model loaded successfully (with attention gates)")
     except Exception as e:
         print(f"✗ Failed to load UNet model: {e}")
         # Try fallback models
-        for fallback_path in ["final_model_tarsus.pth"]:
+        for fallback_path in ["final_model_tarsus_improved.pth", "final_model_tarsus.pth"]:
             try:
                 print(f"Trying fallback: {fallback_path}")
                 unet_model = load_unet_model(fallback_path, device)

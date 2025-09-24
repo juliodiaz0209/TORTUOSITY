@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +14,7 @@ import json
 from typing import Optional, Dict, Any
 import numpy as np
 from skimage import exposure, img_as_ubyte, img_as_float32
+import mgda as mgda
 
 # Import the tortuosity analysis functions
 from Tortuosity import (
@@ -56,7 +57,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Model paths - with fallbacks
 MASK_RCNN_MODEL_PATH = "final_model (11).pth"
-UNET_MODEL_PATH = "final_model_tarsus_improved.pth"
+UNET_MODEL_PATH = "final_model_tarsus_improved (6).pth"  # Mejor modelo con attention gates y CLAHE
 
 # Fallback model paths
 FALLBACK_MASK_RCNN_PATHS = [
@@ -66,13 +67,15 @@ FALLBACK_MASK_RCNN_PATHS = [
 ]
 
 FALLBACK_UNET_PATHS = [
-    "final_model_tarsus_improved.pth",
-    "final_model_tarsus.pth"
+    "final_model_tarsus_improved (6).pth",  # Prioridad al mejor modelo
+    "final_model_tarsus_improved.pth",      # Backup
+    "final_model_tarsus.pth"               # Último recurso
 ]
 
 # Global model instances (loaded once at startup)
 maskrcnn_model = None
 unet_model = None
+meibomio_model = None  # MGDA model for meibomian glands
 
 def try_load_model_with_fallbacks(load_function, model_paths, model_name):
     """Try to load a model from multiple possible paths"""
@@ -129,7 +132,7 @@ def clahe_like_imagej(img, block_radius=63, bins=255, slope=3.0, convert_to_gray
 @app.on_event("startup")
 async def startup_event():
     """Load models on startup"""
-    global maskrcnn_model, unet_model
+    global maskrcnn_model, unet_model, meibomio_model
     try:
         print("Starting model loading process...")
         print(f"Mask R-CNN model path: {MASK_RCNN_MODEL_PATH}")
@@ -193,6 +196,21 @@ async def startup_event():
         except Exception as e:
             print(f"✗ Failed to load UNet model: {e}")
             unet_model = None
+
+        # Load MGDA meibomian glands model (separate UNet)
+        try:
+            meibo_paths = [
+                "final_model_improved_fixed.pth",
+            ]
+            def load_meibo(path):
+                # Use pretrained weights for better performance
+                return mgda.load_model(path, device, encoder_pretrained=True)
+            print("Loading Meibomian glands model (MGDA)...")
+            meibomio_model = try_load_model_with_fallbacks(load_meibo, meibo_paths, "MGDA Meibomian")
+            print("✓ MGDA meibomian model loaded successfully")
+        except Exception as e:
+            print(f"⚠ Failed to load MGDA meibomian model: {e}")
+            meibomio_model = None
         
         if maskrcnn_model is not None and unet_model is not None:
             print("✓ All models loaded successfully!")
@@ -213,6 +231,74 @@ async def startup_event():
     else:
         print("⚠ Application startup completed with degraded functionality - some models failed to load")
         print("   The application will continue to run but may not be able to process images")
+
+@app.post("/analyze-mgda")
+async def analyze_mgda(
+    file: UploadFile = File(...),
+    expansion_mode: str = Form("inferior"),
+    background_tasks: BackgroundTasks = None
+):
+    """Run MGDA analysis (meibomian dysfunction) using preloaded models"""
+    if expansion_mode not in ("inferior", "superior"):
+        raise HTTPException(status_code=400, detail="expansion_mode must be 'inferior' or 'superior'")
+
+    if meibomio_model is None or unet_model is None:
+        raise HTTPException(status_code=503, detail="Required models not loaded (meibomio and/or tarsus)")
+
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    allowed_extensions = {".jpg", ".jpeg", ".png"}
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"File extension {file_extension} not allowed. Use: {allowed_extensions}")
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_file_path = temp_file.name
+
+        # Analyze
+        print(f"[MGDA] Starting analysis. temp_file_path={temp_file_path}, expansion_mode={expansion_mode}")
+
+        # Validate expansion_mode
+        if expansion_mode not in ["inferior", "superior"]:
+            expansion_mode = "inferior"  # Default fallback
+
+        result_image, metrics = mgda.analyze_mgda_with_models(
+            temp_file_path,
+            meibomio_model,
+            unet_model,
+            device,
+            expansion_mode=expansion_mode
+        )
+
+        # Convert image to base64
+        buf = io.BytesIO()
+        result_image.save(buf, format='PNG')
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.getvalue()).decode()
+
+        background_tasks.add_task(os.unlink, temp_file_path) if background_tasks else os.unlink(temp_file_path)
+
+        return {
+            "success": True,
+            "message": "MGDA analysis completed successfully",
+            "data": {
+                "processed_image": f"data:image/png;base64,{img_base64}",
+                "metrics": metrics,
+                "expansion_mode": expansion_mode,
+                "used_expansion_mode": expansion_mode
+            }
+        }
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[MGDA] ERROR: {e}\n{tb}")
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        raise HTTPException(status_code=500, detail={"error": "MGDA analysis failed", "message": str(e), "trace": tb[-2000:]})
 
 @app.get("/")
 async def root():
@@ -238,13 +324,14 @@ async def api_info():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    models_loaded = maskrcnn_model is not None and unet_model is not None
+    models_loaded = (maskrcnn_model is not None) and (unet_model is not None) and (meibomio_model is not None)
     
     return {
         "status": "healthy" if models_loaded else "degraded",
         "models_loaded": {
             "maskrcnn": maskrcnn_model is not None,
-            "unet": unet_model is not None
+            "unet": unet_model is not None,
+            "meibomio": meibomio_model is not None
         },
         "device": str(device),
         "message": "Models loaded successfully" if models_loaded else "Some models failed to load"
@@ -264,6 +351,11 @@ async def model_status():
                 "status": "loaded" if unet_model is not None else "failed",
                 "path": UNET_MODEL_PATH,
                 "fallback_paths": FALLBACK_UNET_PATHS
+            },
+            "meibomio": {
+                "status": "loaded" if meibomio_model is not None else "failed",
+                "path": "final_model_improved_fixed.pth",
+                "fallback_paths": ["final_model_improved_fixed.pth"]
             }
         },
         "device": str(device),

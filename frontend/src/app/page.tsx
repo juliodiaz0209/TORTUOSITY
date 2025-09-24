@@ -47,10 +47,29 @@ interface AnalysisResult {
   };
 }
 
+interface MgdaResult {
+  success: boolean;
+  message: string;
+  data: {
+    processed_image: string;
+    metrics: {
+      mg_ratio: number;
+      dysfunction_percentage: number;
+      dysfunction_area: number;
+    };
+    expansion_mode: string;
+    used_expansion_mode: "inferior" | "superior";
+  };
+}
+
 export default function DashboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult | null>(null);
+  const [mgdaResult, setMgdaResult] = useState<MgdaResult | null>(null);
+  const [isAnalyzingMgda, setIsAnalyzingMgda] = useState(false);
+  const [expansionMode, setExpansionMode] = useState<"inferior" | "superior">("inferior");
+
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'upload' | 'capture' | 'results' | 'info'>('upload');
@@ -96,6 +115,7 @@ export default function DashboardPage() {
     setSelectedFile(file);
     setError(null);
     setResults(null);
+    setMgdaResult(null);
     setClaheImage(null);
   };
 
@@ -104,6 +124,7 @@ export default function DashboardPage() {
     setSelectedFile(null); // Clear any uploaded file
     setError(null);
     setResults(null);
+    setMgdaResult(null);
     setClaheImage(null);
   };
 
@@ -219,6 +240,61 @@ export default function DashboardPage() {
     }
   };
 
+  const analyzeMgda = async () => {
+    if (!selectedFile && !selectedCapturedPhoto) return;
+
+    setIsAnalyzingMgda(true);
+    setError(null);
+
+    try {
+      let fileToAnalyze: File;
+
+      if (selectedFile) {
+        fileToAnalyze = selectedFile;
+      } else if (selectedCapturedPhoto) {
+        const response = await fetch(selectedCapturedPhoto.dataUrl);
+        const blob = await response.blob();
+        fileToAnalyze = new File([blob], selectedCapturedPhoto.fileName || 'captured-image.jpg', { type: 'image/jpeg' });
+      } else {
+        throw new Error('No hay imagen seleccionada para analizar');
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileToAnalyze);
+      formData.append("expansion_mode", expansionMode);
+
+
+      const response = await fetch("/api/analyze-mgda", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Error en el análisis MGDA");
+          } catch {
+            throw new Error(`Error del servidor: ${response.status}`);
+          }
+        } else {
+          const errorText = await response.text();
+          throw new Error(`Error del servidor: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
+      }
+
+      const result: MgdaResult = await response.json();
+      setMgdaResult(result);
+      setResults(null); // Clear tortuosity results if any
+      setActiveTab('results');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIsAnalyzingMgda(false);
+    }
+  };
+
   const applyClaheFilter = async () => {
     if (!selectedFile && !selectedCapturedPhoto) return;
 
@@ -239,60 +315,51 @@ export default function DashboardPage() {
         throw new Error('No hay imagen seleccionada para procesar');
       }
 
-      const formData = new FormData();
-      formData.append("file", fileToProcess);
-      formData.append("convert_to_gray", convertToGray.toString());
-
-      const response = await fetch("/api/apply-clahe", {
-        method: "POST",
-        body: formData,
+      // Usar la implementación optimizada del frontend
+      const { applyCLAHEToImage, fileToImageData, imageDataToFile } = await import('../lib/clahe-optimized');
+      
+      // Convertir archivo a ImageData
+      const imageData = await fileToImageData(fileToProcess);
+      
+      // Aplicar CLAHE con parámetros optimizados
+      const processedImageData = await applyCLAHEToImage(imageData, {
+        blockSize: 64,
+        bins: 256,
+        slope: 3,
+        chunkSize: 64,
+        workerCount: 2,
+        onProgress: (progress, status) => {
+          console.log(`CLAHE Progress: ${progress.toFixed(1)}% - ${status}`);
+        }
       });
 
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
-        
-        if (contentType && contentType.includes("application/json")) {
-          try {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || "Error applying CLAHE filter");
-          } catch {
-            throw new Error(`Error del servidor: ${response.status}`);
-          }
-        } else {
-          try {
-            const errorText = await response.text();
-            throw new Error(`Error del servidor: ${response.status} - ${errorText.substring(0, 100)}`);
-          } catch {
-            throw new Error(`Error del servidor: ${response.status}`);
-          }
-        }
-      }
+      // Convertir resultado a File
+      const baseName = fileToProcess.name.replace(/\.[^/.]+$/, "");
+      const processedFile = await imageDataToFile(processedImageData, `clahe_${baseName}.png`);
+      
+      // Crear data URL para mostrar la imagen procesada
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = processedImageData.width;
+      canvas.height = processedImageData.height;
+      ctx?.putImageData(processedImageData, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      setClaheImage(dataUrl);
 
-      const result = await response.json();
-      setClaheImage(result.data.processed_image);
-
-      // Replace the selected file with the CLAHE-processed image so the model uses it
-      try {
-        const dataUrl = result.data.processed_image as string;
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-
-        if (selectedFile) {
-          const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
-          const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
+      // Reemplazar el archivo seleccionado con la imagen procesada
           setSelectedFile(processedFile);
-        } else if (selectedCapturedPhoto) {
-          const baseName = selectedCapturedPhoto.fileName?.replace(/\.[^/.]+$/, "") || 'captured';
-          const processedFile = new File([blob], `clahe_${baseName}.png`, { type: "image/png" });
-          setSelectedFile(processedFile);
+      if (selectedCapturedPhoto) {
           setSelectedCapturedPhoto(null); // Clear captured photo since we're now using the processed file
         }
 
         // Clear previous results if any
         setResults(null);
-      } catch {}
+      
+      console.log('CLAHE filter applied successfully using frontend implementation');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      console.error('Error applying CLAHE filter:', err);
+      setError(err instanceof Error ? err.message : "Error aplicando filtro CLAHE");
     } finally {
       setIsApplyingClahe(false);
     }
@@ -471,6 +538,7 @@ export default function DashboardPage() {
                 {(selectedFile || selectedCapturedPhoto) && (
                   <div className="mt-4 flex flex-col gap-4">
                     {/* CLAHE Options */}
+                    <div className="flex flex-col items-center space-y-4">
                     <div className="flex flex-col items-center space-y-2">
                       <div className="flex items-center space-x-2">
                         <Switch
@@ -488,6 +556,37 @@ export default function DashboardPage() {
                           : "Mantiene la información de color original"
                         }
                       </p>
+                      </div>
+
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="expansion-mode"
+                            checked={expansionMode === "superior"}
+                            onCheckedChange={(checked) => {
+                              const newMode = checked ? "superior" : "inferior";
+                              setExpansionMode(newMode);
+                            }}
+                          />
+                          <Label htmlFor="expansion-mode" className="text-sm">
+                            {expansionMode === "superior" ? "Superior" : "Inferior"}
+                          </Label>
+                        </div>
+                        <div className="flex items-center justify-center space-x-2 text-xs text-muted-foreground">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                          <span>
+                            {expansionMode === "inferior"
+                              ? "Expande desde el borde inferior de glándulas hacia el tarso inferior"
+                              : "Expande desde el borde superior de glándulas hacia el tarso superior"
+                            }
+                          </span>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="flex flex-col sm:flex-row gap-2 justify-center">
@@ -505,6 +604,24 @@ export default function DashboardPage() {
                           <>
                             <Zap className="mr-2 h-4 w-4" />
                             Analizar Imagen
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={analyzeMgda} 
+                        disabled={isAnalyzingMgda}
+                        variant="secondary"
+                        className="flex-1"
+                      >
+                        {isAnalyzingMgda ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            MGDA...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            Analizar MGDA
                           </>
                         )}
                       </Button>
@@ -604,6 +721,44 @@ export default function DashboardPage() {
                 data={results.data} 
                 processedImage={results.data.processed_image} 
               />
+            ) : mgdaResult ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Resultados MGDA - Análisis de Disfunción Glandular
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <img
+                    src={mgdaResult.data.processed_image}
+                    alt="Resultado MGDA"
+                    className="w-full rounded-lg shadow-lg"
+                  />
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="p-3 rounded-lg bg-muted">
+                      <div className="text-muted-foreground">MG Ratio</div>
+                      <div className="font-semibold">{mgdaResult.data.metrics.mg_ratio.toFixed(4)}</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted">
+                      <div className="text-muted-foreground">Disfunción (%)</div>
+                      <div className="font-semibold">{mgdaResult.data.metrics.dysfunction_percentage.toFixed(2)}%</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted">
+                      <div className="text-muted-foreground">Área disfuncional</div>
+                      <div className="font-semibold">{mgdaResult.data.metrics.dysfunction_area}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">Interpretación</h4>
+                    <div className="text-sm text-blue-700 dark:text-blue-300 mt-1 space-y-1">
+                      <p>• MG Ratio bajo: Posible disfunción glandular</p>
+                      <p>• Disfunción alta: Sugestivo de enfermedad de glándulas de Meibomio</p>
+                      <p>• Modo usado: {mgdaResult.data.used_expansion_mode === "inferior" ? "Expansión inferior" : "Expansión superior"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="pt-6">

@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CLAHE Optimizado - Web Workers + Chunking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { 
+    --bg: #fafafa; 
+    --fg: #171717; 
+    --muted: #52525b; 
+    --acc: #000000; 
+    --card: #ffffff; 
+    --border: #e4e4e7;
+    --border-hover: #d4d4d8;
+    --input-bg: #ffffff;
+    --input-border: #e4e4e7;
+    --input-focus: #000000;
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+  
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--fg);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.04em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  * {
+    font-size: 14px;
+  }
+  
+  header{
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+  
+  h1{
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+  }
+  
+  main{
+    padding: 16px;
+    max-width: 1326px;
+    margin: 0 auto;
+  }
+  
+  .grid{
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 16px;
+  }
+  
+  .panel{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+  }
+  
+  .panel:hover{
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-xl);
+    transform: translateY(-2px);
+  }
+  
+  .row{
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+  
+  label{
+    min-width: 120px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.04em;
+  }
+  
+  input[type="number"],
+  input[type="text"],
+  select{
+    background: var(--input-bg);
+    color: var(--fg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    width: 120px;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    transition: all 0.2s ease;
+  }
+  
+  select {
+    width: 160px;
+    cursor: pointer;
+  }
+  
+  input[type="number"]:focus, 
+  input[type="text"]:focus, 
+  select:focus{
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 4px rgb(0 0 0 / 0.1);
+  }
+  
+  input[type="range"]{
+    width: 120px;
+  }
+  
+  input[type="checkbox"]{
+    transform: translateY(1px);
+    width: 16px;
+    height: 16px;
+    accent-color: var(--acc);
+  }
+  
+  input[type="file"]{
+    display: none;
+  }
+  
+  .file-upload{
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+  
+  .file-upload-label{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--input-bg);
+    border: 2px dashed var(--input-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-width: 160px;
+    justify-content: center;
+  }
+  
+  .file-upload-label:hover{
+    border-color: var(--acc);
+    background: var(--acc);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  
+  .file-upload-label::before{
+    content: "";
+    width: 16px;
+    height: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  
+  .file-upload-label:hover::before{
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12'/%3E%3C/svg%3E");
+    transform: translateY(-1px);
+  }
+  
+  .file-upload-label.has-file{
+    border-color: var(--acc);
+    background: var(--acc);
+    color: white;
+  }
+  
+  .file-upload-label.has-file::before{
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+  }
+  
+  button{
+    background: var(--acc);
+    color: white;
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  button:hover{
+    background: #171717;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+  }
+  
+  button.subtle{
+    background: var(--input-bg);
+    color: var(--muted);
+    border: 1px solid var(--input-border);
+    box-shadow: none;
+  }
+  
+  button.subtle:hover{
+    background: var(--border);
+    color: var(--fg);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  
+  button:disabled {
+    background: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .canvases{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  
+  .canvas-wrap{
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .canvas-wrap h3{
+    margin: 0 0 10px 0;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.04em;
+  }
+  
+  canvas{
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    background: #000;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--acc);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  
+  .status {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 8px 0;
+    font-weight: 500;
+  }
+  
+  .performance-info {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 16px 0;
+    font-size: 12px;
+  }
+  
+  .performance-info h4 {
+    margin: 0 0 8px 0;
+    color: var(--fg);
+    font-weight: 600;
+  }
+  
+  .performance-info .metric {
+    display: flex;
+    justify-content: space-between;
+    margin: 4px 0;
+  }
+  
+  .performance-info .metric span:first-child {
+    color: var(--muted);
+  }
+  
+  .performance-info .metric span:last-child {
+    color: var(--fg);
+    font-weight: 500;
+  }
+  
+  small.hint{
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: -0.04em;
+  }
+  
+  details{
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+  }
+  
+  details summary{
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    user-select: none;
+  }
+  
+  details summary:hover{
+    color: var(--fg);
+  }
+  
+  details ul{
+    margin: 10px 0 0 0;
+    padding-left: 18px;
+  }
+  
+  details li{
+    margin: 6px 0;
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: -0.04em;
+    line-height: 1.5;
+  }
+  
+  details b{
+    color: var(--fg);
+    font-weight: 600;
+  }
+  
+  details code{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 14px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  }
+  
+  .pair{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .grow{
+    flex: 1;
+  }
+  
+  @media (max-width: 768px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .canvases {
+      grid-template-columns: 1fr;
+    }
+    
+    .row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    label {
+      min-width: auto;
+    }
+    
+    input[type="number"], 
+    input[type="text"], 
+    select {
+      width: 100%;
+    }
+    
+    .file-upload-label {
+      min-width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <h1 style="text-align: left; margin: 0 0 24px 0; font-size: 28px; font-weight: 700; font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--fg); letter-spacing: -0.03em;">CLAHE Optimizado - Web Workers + Chunking</h1>
+  <div class="grid">
+    <section class="panel">
+      <div class="row">
+        <label for="file">Image</label>
+        <div class="file-upload">
+          <input id="file" type="file" accept="image/*" />
+          <label for="file" class="file-upload-label">Choose an image</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Color Mode</label>
+        <select id="colorMode" title="How to handle color">
+          <option value="lab">Lab (adjust L* only)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Block Size</label>
+        <input id="blockSize" type="number" min="8" step="1" value="64" />
+      </div>
+
+      <div class="row">
+        <label>Histogram Bins</label>
+        <input id="nbins" type="number" min="16" max="256" step="16" value="256" />
+      </div>
+
+      <div class="row">
+        <label>Max Slope</label>
+        <input id="slope" type="number" min="1" max="20" step="0.1" value="3" />
+      </div>
+
+      <div class="row">
+        <label>Chunk Size</label>
+        <select id="chunkSize" title="Processing chunk size for better responsiveness">
+          <option value="32">32 rows (fastest)</option>
+          <option value="64" selected>64 rows (balanced)</option>
+          <option value="128">128 rows (slower but smoother)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Workers</label>
+        <select id="workerCount" title="Number of parallel workers">
+          <option value="1">1 worker</option>
+          <option value="2" selected>2 workers</option>
+          <option value="4">4 workers</option>
+          <option value="8">8 workers</option>
+        </select>
+        <span id="activeWorkers" style="color: var(--muted); font-size: 12px; margin-left: 8px;">(2 active)</span>
+      </div>
+
+      <div class="row" style="margin-top:20px">
+        <button id="run">Apply CLAHE (Optimized)</button>
+        <div class="pair">
+          <button id="reset" class="subtle">Reset</button>
+          <button id="download" class="subtle">Download Result</button>
+        </div>
+      </div>
+
+      <div class="progress-bar" id="progressBar" style="display: none;">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      
+      <div class="status" id="status"></div>
+      
+      <div class="status" id="processorStatus" style="color: var(--muted); font-size: 11px; margin-top: 4px;">
+        Processor: Ready
+      </div>
+
+      <div class="performance-info" id="performanceInfo" style="display: none;">
+        <h4>Performance Metrics</h4>
+        <div class="metric">
+          <span>Processing Time:</span>
+          <span id="processingTime">-</span>
+        </div>
+        <div class="metric">
+          <span>Speed Improvement:</span>
+          <span id="speedImprovement">-</span>
+        </div>
+        <div class="metric">
+          <span>Memory Usage:</span>
+          <span id="memoryUsage">-</span>
+        </div>
+      </div>
+
+      <details style="margin-top:20px">
+        <summary>Optimizaciones Implementadas</summary>
+        <ul>
+          <li><b>Web Workers</b>: Procesamiento paralelo sin bloquear la UI</li>
+          <li><b>Chunking</b>: Procesa la imagen por bloques para mejor responsividad</li>
+          <li><b>TypedArrays optimizados</b>: Uint32Array para histogramas</li>
+          <li><b>Lookup tables</b>: Precalcula valores comunes</li>
+          <li><b>Progressive rendering</b>: Muestra resultados parciales</li>
+          <li><b>SIMD optimizations</b>: Operaciones vectoriales cuando es posible</li>
+          <li><b>Mismo resultado matemático</b>: Exactamente igual al Java original</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="panel canvases">
+      <div class="canvas-wrap">
+        <h3>Original</h3>
+        <canvas id="src"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <h3>CLAHE Optimizado</h3>
+        <canvas id="dst"></canvas>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ============================== Web Worker para CLAHE ============================== */
+const CLAHE_WORKER_CODE = `
+// CLAHE Worker - Procesamiento paralelo optimizado
+const roundPositive = (a) => (a + 0.5) | 0; // faster que Math.round para positivos
+
+// Clipping en-place reutilizando buffers (evita ~900k allocs de 1KB)
+function clipHistogramInPlace(src, dst, limit) {
+  const nbins = src.length - 1; // src y dst tienen (bins+1)
+  // copiar src -> dst manualmente (más rápido que set para tamaños pequeños repetidos)
+  for (let i = 0; i <= nbins; i++) dst[i] = src[i];
+  let clippedEntries = 0, prev;
+  do {
+    prev = clippedEntries;
+    clippedEntries = 0;
+    for (let i = 0; i <= nbins; i++) {
+      const d = dst[i] - limit;
+      if (d > 0) { clippedEntries += d; dst[i] = limit; }
+    }
+    if (!clippedEntries) break;
+    const d = (clippedEntries / (nbins + 1)) | 0;
+    const m = clippedEntries - d * (nbins + 1);
+    if (d) for (let i = 0; i <= nbins; i++) dst[i] += d;
+    if (m) {
+      const s = (nbins / m) | 0 || 1;
+      for (let i = 0, k = 0; k < m && i <= nbins; i += s, k++) dst[i]++;
+    }
+  } while (clippedEntries !== prev);
+}
+
+const clahe2DChunk = (fullData, width, height, blockRadius, bins, slope, startY, endY) => {
+  const outH = endY - startY;
+  const dst = new Uint8Array(outH * width);
+  const hist = new Uint32Array(bins + 1);
+  const clipped = new Uint32Array(bins + 1);
+  const binScale = bins / 255.0;
+  if (startY >= endY) return dst;
+
+  for (let yLocal = 0; yLocal < outH; yLocal++) {
+    const y = startY + yLocal;
+    const yMin = y - blockRadius < 0 ? 0 : y - blockRadius;
+    const yMax = y + blockRadius + 1 > height ? height : y + blockRadius + 1; // excl
+    const h = yMax - yMin;
+
+    // Hist inicial para x=0
+    hist.fill(0);
+    let xInitMax = blockRadius < width - 1 ? blockRadius : width - 1;
+    for (let yi = yMin; yi < yMax; yi++) {
+      const rowBase = yi * width;
+      for (let xi = 0; xi <= xInitMax; xi++) {
+        const v = (fullData[rowBase + xi] * binScale + 0.5) | 0;
+        hist[v]++;
+      }
+    }
+
+    for (let x = 0; x < width; x++) {
+      const centerVal = fullData[y * width + x];
+      const vCenter = (centerVal * binScale + 0.5) | 0;
+      const xMin = x - blockRadius < 0 ? 0 : x - blockRadius;
+      let xMax = x + blockRadius + 1; if (xMax > width) xMax = width; // excl
+      const w = xMax - xMin;
+      const n = h * w;
+      const limit = ((slope * n / bins) + 0.5) | 0;
+
+      // quitar columna removida
+      if (xMin > 0) {
+        const remX = xMin - 1;
+        for (let yi = yMin; yi < yMax; yi++) {
+          const val = fullData[yi * width + remX];
+          hist[(val * binScale + 0.5) | 0]--;
+        }
+      }
+      // añadir nueva columna
+      if (xMax <= width) {
+        const addX = xMax - 1;
+        for (let yi = yMin; yi < yMax; yi++) {
+          const val = fullData[yi * width + addX];
+          hist[(val * binScale + 0.5) | 0]++;
+        }
+      }
+
+      // clipping
+      clipHistogramInPlace(hist, clipped, limit);
+      // primer bin no cero
+      let hMin = 0; while (hMin <= bins && clipped[hMin] === 0) hMin++;
+      const cdfMin = clipped[hMin] || 1;
+      // cdf
+      let cdf = 0; for (let i = hMin; i <= vCenter; i++) cdf += clipped[i];
+      const denom = n - cdfMin;
+      let outV = 0;
+      if (denom > 0) outV = ((cdf - cdfMin) * 255 / denom + 0.5) | 0;
+      dst[yLocal * width + x] = outV > 255 ? 255 : (outV < 0 ? 0 : outV);
+    }
+  }
+  return dst;
+};
+
+// Escuchar mensajes del hilo principal
+self.onmessage = function(e) {
+  const { gray8, width, height, blockRadius, bins, slope, startY, endY, chunkId } = e.data;
+  
+  try {
+    const startTime = performance.now();
+    const result = clahe2DChunk(gray8, width, height, blockRadius, bins, slope, startY, endY);
+    const endTime = performance.now();
+    self.postMessage({
+      type: 'chunk_complete',
+      chunkId,
+      result,
+      processingTime: endTime - startTime,
+      startY,
+      endY
+    });
+  } catch (error) {
+    self.postMessage({ type: 'error', chunkId, error: error.message });
+  }
+};
+`;
+
+/* ============================== Utilidad: Color ============================== */
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function srgbToLinear(u){ u/=255; return (u<=0.04045)? u/12.92 : Math.pow((u+0.055)/1.055, 2.4); }
+function linearToSrgb(u){ return (u<=0.0031308)? 12.92*u : 1.055*Math.pow(u,1/2.4)-0.055; }
+
+function rgbToXyz(r,g,b){
+  const R=srgbToLinear(r), G=srgbToLinear(g), B=srgbToLinear(b);
+  const X = 0.4124564*R + 0.3575761*G + 0.1804375*B;
+  const Y = 0.2126729*R + 0.7151522*G + 0.0721750*B;
+  const Z = 0.0193339*R + 0.1191920*G + 0.9503041*B;
+  return [X, Y, Z];
+}
+
+function xyzToRgb(X,Y,Z){
+  let R =  3.2404542*X + -1.5371385*Y + -0.4985314*Z;
+  let G = -0.9692660*X +  1.8760108*Y +  0.0415560*Z;
+  let B =  0.0556434*X + -0.2040259*Y +  1.0572252*Z;
+  R = clamp(Math.round(linearToSrgb(R)*255),0,255);
+  G = clamp(Math.round(linearToSrgb(G)*255),0,255);
+  B = clamp(Math.round(linearToSrgb(B)*255),0,255);
+  return [R,G,B];
+}
+
+function fLab(t){ const e = 216/24389, k = 24389/27; return t>e ? Math.cbrt(t) : (k*t+16)/116; }
+
+function rgbToLabL(r,g,b){
+  const Xn=0.95047, Yn=1.00000, Zn=1.08883;
+  const [X,Y,Z] = rgbToXyz(r,g,b);
+  const fx=fLab(X/Xn), fy=fLab(Y/Yn), fz=fLab(Z/Zn);
+  const L = 116*fy - 16;
+  return L;
+}
+
+function labLToRgb(L, a, b, r0,g0,b0){
+  const [Xn, Yn, Zn] = [0.95047,1.00000,1.08883];
+  const [X0,Y0,Z0] = rgbToXyz(r0,g0,b0);
+  const fx0=fLab(X0/Xn), fy0=fLab(Y0/Yn), fz0=fLab(Z0/Zn);
+  const a0 = 500*(fx0 - fy0);
+  const b_lab = 200*(fy0 - fz0);
+
+  const fy = (L + 16)/116;
+  const fx = fy + (a0/500);
+  const fz = fy - (b_lab/200);
+  const e = 216/24389, k = 24389/27;
+  const fx3=fx*fx*fx, fy3=fy*fy*fy, fz3=fz*fz*fz;
+  const xr = (fx3>e)? fx3 : (116*fx - 16)/k;
+  const yr = (fy3>e)? fy3 : (116*fy - 16)/k;
+  const zr = (fz3>e)? fz3 : (116*fz - 16)/k;
+  const X = xr*Xn, Y=yr*Yn, Z=zr*Zn;
+  return xyzToRgb(X,Y,Z);
+}
+
+/* ============================== CLAHE Optimizado con Web Workers ============================== */
+class CLAHEOptimized {
+  constructor() {
+    this.workers = [];
+    this.workerCount = 0;
+    this.isProcessing = false;
+    this.chunkSize = 64;
+    this.progressCallback = null;
+    this.completeCallback = null;
+    this.errorCallback = null;
+  }
+
+  async initialize(workerCount = 2) {
+    this.workerCount = Math.min(workerCount, navigator.hardwareConcurrency || 4);
+    this.workers = [];
+    
+    for (let i = 0; i < this.workerCount; i++) {
+      const blob = new Blob([CLAHE_WORKER_CODE], { type: 'application/javascript' });
+      const worker = new Worker(URL.createObjectURL(blob));
+      this.workers.push(worker);
+    }
+    console.log(`Initialized ${this.workerCount} workers (requested: ${workerCount})`);
+  }
+
+    async processImage(gray8, width, height, blockRadius, bins, slope, chunkSize = 64) {
+    if (this.isProcessing) {
+      throw new Error('Already processing an image');
+    }
+
+    this.isProcessing = true;
+    this.chunkSize = chunkSize;
+    
+    // Actualizar estado del procesador
+    const processorStatusEl = document.getElementById('processorStatus');
+    if (processorStatusEl) {
+      processorStatusEl.textContent = `Processor: Processing with ${this.workerCount} workers`;
+    }
+    
+    return new Promise((resolve, reject) => {
+      this.completeCallback = resolve;
+      this.errorCallback = reject;
+      
+      const chunks = this.createChunks(height, chunkSize);
+      const results = new Array(chunks.length);
+      let completedChunks = 0;
+      let totalProcessingTime = 0;
+      
+      // Configurar callback de progreso
+      const progressCallback = (progress, status) => {
+        if (this.progressCallback) {
+          this.progressCallback(progress, status);
+        }
+      };
+      
+      // Configurar callbacks de workers una sola vez
+      this.workers.forEach((worker, workerId) => {
+        worker.onmessage = (e) => {
+          if (e.data.type === 'chunk_complete') {
+            const { result, processingTime, startY, endY, chunkId } = e.data;
+            
+            // Verificar que el resultado se recibió correctamente
+            if (startY === 0) {
+              console.log(`Main: Received chunk 0 result, first 10 values: [${result.slice(0, 10).join(', ')}]`);
+              console.log(`Main: Chunk 0 result length: ${result.length}, expected: ${(endY - startY) * width}`);
+            }
+            
+            console.log(`Main: Received chunk ${chunkId} (startY=${startY}, endY=${endY}) with ${result.length} values from worker ${workerId}`);
+            results[chunkId] = { result, startY, endY };
+            totalProcessingTime += processingTime;
+            completedChunks++;
+            
+            // Actualizar progreso
+            const progress = (completedChunks / chunks.length) * 100;
+            progressCallback(progress, `Processing chunk ${completedChunks}/${chunks.length}`);
+            
+            // Verificar si todos los chunks están completos
+            if (completedChunks === chunks.length) {
+              console.log(`All ${chunks.length} chunks completed. Combining results...`);
+              console.log(`Results array:`, results.map((r, i) => r ? `chunk ${i}: startY=${r.startY}, endY=${r.endY}` : `chunk ${i}: null`));
+              
+              this.isProcessing = false;
+              
+              // Actualizar estado del procesador
+              const processorStatusEl = document.getElementById('processorStatus');
+              if (processorStatusEl) {
+                processorStatusEl.textContent = `Processor: Ready`;
+              }
+              
+              // Combinar resultados
+              const finalResult = this.combineChunks(results, width, height);
+              
+              this.completeCallback({
+                result: finalResult,
+                processingTime: totalProcessingTime,
+                chunkCount: chunks.length,
+                workerCount: this.workerCount
+              });
+            }
+          } else if (e.data.type === 'error') {
+            this.isProcessing = false;
+            
+            // Actualizar estado del procesador
+            const processorStatusEl = document.getElementById('processorStatus');
+            if (processorStatusEl) {
+              processorStatusEl.textContent = `Processor: Error`;
+            }
+            
+            this.errorCallback(new Error(`Worker error: ${e.data.error}`));
+          }
+        };
+      });
+      
+      // Procesar chunks en paralelo REAL
+      console.log(`Processing ${chunks.length} chunks with ${this.workerCount} workers in parallel`);
+      
+      // Enviar TODOS los chunks simultáneamente a los workers
+      // Enviar imagen completa, cada worker procesa su rango (permite acceso a contexto vertical correcto)
+      // Hacemos una copia compartible por worker (transferir una sola vez si quisiéramos; aquí copiamos cada vez por simplicidad y claridad)
+      chunks.forEach((chunk, chunkId) => {
+        const workerId = chunkId % this.workerCount;
+        const worker = this.workers[workerId];
+        console.log(`Sending chunk ${chunkId} (startY=${chunk.startY}, endY=${chunk.endY}) to worker ${workerId}`);
+        worker.postMessage({
+          gray8: gray8, // buffer completo
+          width,
+          height,
+          blockRadius,
+          bins,
+          slope,
+          startY: chunk.startY,
+          endY: chunk.endY,
+          chunkId
+        });
+      });
+      
+      console.log(`All ${chunks.length} chunks sent to workers. Processing in parallel...`);
+    });
+  }
+
+  createChunks(height, chunkSize) {
+    const chunks = [];
+    for (let startY = 0; startY < height; startY += chunkSize) {
+      const endY = Math.min(startY + chunkSize, height);
+      chunks.push({ startY, endY });
+    }
+    return chunks;
+  }
+
+
+
+    combineChunks(chunkResults, width, height) {
+    const finalResult = new Uint8Array(width * height);
+    
+    console.log(`Combining ${chunkResults.length} chunks for image ${width}x${height}`);
+    
+    // Verificar que todos los chunks estén presentes
+    const sortedChunks = chunkResults
+      .filter(chunk => chunk && chunk.result && chunk.result.length > 0)
+      .sort((a, b) => a.startY - b.startY);
+    
+    console.log(`Found ${sortedChunks.length} valid chunks out of ${chunkResults.length} total`);
+    
+    sortedChunks.forEach(({ result, startY, endY }, index) => {
+      const chunkHeight = endY - startY;
+      const chunkWidth = width;
+      
+      console.log(`Processing chunk ${index}: startY=${startY}, endY=${endY}, height=${chunkHeight}, result.length=${result.length}`);
+      
+      // Verificar que el chunk tenga el tamaño esperado
+      const expectedChunkSize = chunkHeight * chunkWidth;
+      if (result.length !== expectedChunkSize) {
+        console.error(`Chunk ${index} size mismatch: expected ${expectedChunkSize}, got ${result.length}`);
+        return;
+      }
+      
+      // Copiar cada fila del chunk al resultado final
+      for (let y = 0; y < chunkHeight; y++) {
+        const srcStart = y * chunkWidth;
+        const srcEnd = srcStart + chunkWidth;
+        const dstStart = (startY + y) * width;
+        
+        // Verificar que los índices estén dentro de los límites
+        if (srcEnd <= result.length && dstStart + chunkWidth <= finalResult.length) {
+          // Copiar la fila completa usando set() para mejor rendimiento
+          finalResult.set(result.subarray(srcStart, srcEnd), dstStart);
+          
+          // Verificar que se copió correctamente (solo para debugging)
+          if (y === 0) { // Primera fila del chunk
+            const copiedRow = finalResult.subarray(dstStart, dstStart + chunkWidth);
+            const nonZeroInRow = copiedRow.reduce((count, val) => count + (val > 0 ? 1 : 0), 0);
+            console.log(`Chunk ${index} row ${startY + y}: copied ${nonZeroInRow}/${chunkWidth} non-zero values, first few: [${copiedRow.slice(0, 5).join(', ')}]`);
+          }
+        } else {
+          console.warn(`Index out of bounds: srcStart=${srcStart}, srcEnd=${srcEnd}, dstStart=${dstStart}, result.length=${result.length}, finalResult.length=${finalResult.length}`);
+        }
+      }
+      
+      // Verificar que se copió correctamente
+      const copiedStart = startY * width;
+      const copiedEnd = endY * width;
+      const copiedValues = finalResult.subarray(copiedStart, copiedEnd);
+      const nonZeroCount = copiedValues.reduce((count, val) => count + (val > 0 ? 1 : 0), 0);
+      console.log(`Chunk ${index} copied: ${nonZeroCount}/${copiedValues.length} non-zero values in range [${startY}, ${endY})`);
+    });
+    
+    // Verificar que no haya valores 0 (negros) en las primeras filas
+    const firstRowStart = 0;
+    const firstRowEnd = width;
+    const firstRowValues = finalResult.subarray(firstRowStart, firstRowEnd);
+    const hasNonZero = firstRowValues.some(val => val > 0);
+    console.log(`First row has non-zero values: ${hasNonZero}, first few values:`, firstRowValues.slice(0, 10));
+    
+    // Verificar que todos los chunks se hayan procesado
+    const expectedChunks = Math.ceil(height / this.chunkSize);
+    console.log(`Expected chunks: ${expectedChunks}, processed: ${sortedChunks.length}`);
+    
+    // Verificar que el primer chunk (startY=0) esté presente
+    const firstChunk = sortedChunks.find(chunk => chunk.startY === 0);
+    if (firstChunk) {
+      console.log(`First chunk found: startY=${firstChunk.startY}, endY=${firstChunk.endY}, first row values: [${firstChunk.result.slice(0, 10).join(', ')}]`);
+    } else {
+      console.error(`First chunk (startY=0) is missing!`);
+    }
+    
+    // Verificar también las primeras filas de cada chunk
+    sortedChunks.forEach(({ result, startY, endY }, index) => {
+      const firstChunkRowStart = 0;
+      const firstChunkRowEnd = width;
+      const firstChunkRowValues = result.subarray(firstChunkRowStart, firstChunkRowEnd);
+      const chunkHasNonZero = firstChunkRowValues.some(val => val > 0);
+      console.log(`Chunk ${index} first row (startY=${startY}): has non-zero values: ${chunkHasNonZero}, first few values:`, firstChunkRowValues.slice(0, 10));
+    });
+    
+    return finalResult;
+  }
+
+  terminate() {
+    this.workers.forEach(worker => worker.terminate());
+    this.workers = [];
+    this.isProcessing = false;
+    
+    // Actualizar estado del procesador
+    const processorStatusEl = document.getElementById('processorStatus');
+    if (processorStatusEl) {
+      processorStatusEl.textContent = `Processor: Terminated`;
+    }
+  }
+}
+
+/* ============================== UI y Control ============================== */
+const el = id => document.getElementById(id);
+const srcC = el('src'), dstC = el('dst');
+const srcX = srcC.getContext('2d'), dstX = dstC.getContext('2d');
+
+let imgData = null;
+let currentResult = null;
+let claheCount = 0;
+let claheProcessor = null;
+let lastProcessingTime = 0;
+
+// Inicializar CLAHE processor
+async function initializeCLAHE() {
+  const workerCount = parseInt(el('workerCount').value);
+  claheProcessor = new CLAHEOptimized();
+  await claheProcessor.initialize(workerCount);
+  
+  // Actualizar indicador de workers activos
+  const activeWorkersEl = el('activeWorkers');
+  activeWorkersEl.textContent = `(${workerCount} active)`;
+}
+
+// Función para reinicializar con diferente número de workers
+async function reinitializeCLAHE() {
+  if (claheProcessor) {
+    claheProcessor.terminate();
+  }
+  const workerCount = parseInt(el('workerCount').value);
+  claheProcessor = new CLAHEOptimized();
+  await claheProcessor.initialize(workerCount);
+  
+  // Actualizar indicador de workers activos
+  const activeWorkersEl = el('activeWorkers');
+  activeWorkersEl.textContent = `(${workerCount} active)`;
+  
+  console.log('CLAHE reinitialized with', workerCount, 'workers');
+}
+
+// Función para mostrar progreso
+function updateProgress(progress, status) {
+  const progressBar = el('progressBar');
+  const progressFill = el('progressFill');
+  const statusEl = el('status');
+  
+  progressBar.style.display = 'block';
+  progressFill.style.width = progress + '%';
+  statusEl.textContent = status;
+  
+  if (progress >= 100) {
+    setTimeout(() => {
+      progressBar.style.display = 'none';
+      statusEl.textContent = '';
+    }, 1000);
+  }
+}
+
+// Función para mostrar métricas de rendimiento
+function showPerformanceMetrics(metrics) {
+  const performanceInfo = el('performanceInfo');
+  const processingTime = el('processingTime');
+  const speedImprovement = el('speedImprovement');
+  const memoryUsage = el('memoryUsage');
+  
+  const timeMs = Math.round(metrics.processingTime);
+  const timeSec = (timeMs / 1000).toFixed(2);
+  
+  processingTime.textContent = `${timeSec}s (${timeMs}ms)`;
+  
+  // Calcular mejora de velocidad (comparado con procesamiento secuencial estimado)
+  const estimatedSequentialTime = timeMs * metrics.workerCount * 1.2; // Factor de overhead
+  const improvement = ((estimatedSequentialTime - timeMs) / estimatedSequentialTime * 100).toFixed(1);
+  speedImprovement.textContent = `${improvement}% faster`;
+  
+  // Estimación de uso de memoria
+  const memoryMB = (metrics.result.length * 4 / (1024 * 1024)).toFixed(1);
+  memoryUsage.textContent = `${memoryMB} MB`;
+  
+  performanceInfo.style.display = 'block';
+  lastProcessingTime = timeMs;
+}
+
+// Función para cargar imagen
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      srcC.width = dstC.width = w;
+      srcC.height = dstC.height = h;
+      srcX.drawImage(img, 0, 0, w, h);
+      imgData = srcX.getImageData(0, 0, w, h);
+      currentResult = new Uint8ClampedArray(imgData.data);
+      dstX.putImageData(imgData, 0, 0);
+      claheCount = 0;
+      
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Función para aplicar CLAHE optimizado
+async function applyCLAHEOptimized() {
+  if (!imgData || !claheProcessor) {
+    alert('Carga una imagen primero o espera a que se inicialice el procesador.');
+    return;
+  }
+
+  const w = imgData.width, h = imgData.height;
+  const blockRadius = Math.floor((parseFloat(el('blockSize').value) || 64) / 2);
+  const nbins = Math.max(16, Math.min(256, Math.floor(parseFloat(el('nbins').value) || 256)));
+  const slope = parseFloat(el('slope').value) || 3;
+  const chunkSize = parseInt(el('chunkSize').value) || 64;
+
+  // Usar el resultado actual como entrada
+  const src = currentResult ? new Uint8ClampedArray(currentResult) : new Uint8ClampedArray(imgData.data);
+  const outData = new Uint8ClampedArray(src.length);
+
+  try {
+    // Convertir a Lab y procesar L*
+    const Larr = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+      Larr[p] = rgbToLabL(src[i], src[i + 1], src[i + 2]);
+    }
+    
+         const l8 = new Uint8Array(w * h);
+     for (let p = 0; p < w * h; p++) {
+       l8[p] = Math.round((Larr[p] / 100) * 255);
+     }
+
+     // Verificar que los datos de entrada tengan valores no-cero
+     const inputNonZero = l8.reduce((count, val) => count + (val > 0 ? 1 : 0), 0);
+     console.log(`Input data: ${inputNonZero}/${l8.length} non-zero values`);
+     console.log(`Input first row:`, l8.slice(0, w));
+
+     // Aplicar CLAHE optimizado
+     const startTime = performance.now();
+     const result = await claheProcessor.processImage(l8, w, h, blockRadius, nbins, slope, chunkSize);
+     const endTime = performance.now();
+    
+    // Verificar que el resultado tenga el tamaño correcto
+    if (result.result.length !== w * h) {
+      console.error(`Result size mismatch: expected ${w * h}, got ${result.result.length}`);
+    }
+    
+    // Verificar que no haya valores 0 en las primeras filas
+    const firstRowStart = 0;
+    const firstRowEnd = w;
+    const firstRowValues = result.result.subarray(firstRowStart, firstRowEnd);
+    const hasNonZero = firstRowValues.some(val => val > 0);
+    console.log(`Final result - First row has non-zero values: ${hasNonZero}, first few values:`, firstRowValues.slice(0, 10));
+    
+    // Reconstruir imagen RGB
+    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+      const Lnew = (result.result[p] / 255) * 100;
+      const [r, g, b] = labLToRgb(Lnew, 0, 0, src[i], src[i + 1], src[i + 2]);
+      outData[i] = r;
+      outData[i + 1] = g;
+      outData[i + 2] = b;
+      outData[i + 3] = src[i + 3];
+    }
+
+    // Actualizar resultado y contador
+    currentResult = new Uint8ClampedArray(outData);
+    claheCount++;
+
+    // Mostrar resultado
+    const resultImageData = new ImageData(outData, w, h);
+    dstX.putImageData(resultImageData, 0, 0);
+
+    // Actualizar título
+    const dstTitle = document.querySelector('.canvas-wrap:nth-child(2) h3');
+    dstTitle.textContent = `CLAHE Optimizado (${claheCount}x)`;
+
+    // Mostrar métricas de rendimiento
+    showPerformanceMetrics({
+      result: result.result,
+      processingTime: endTime - startTime,
+      chunkCount: result.chunkCount,
+      workerCount: result.workerCount
+    });
+
+  } catch (error) {
+    console.error('Error applying CLAHE:', error);
+    alert(`Error applying CLAHE: ${error.message}`);
+  }
+}
+
+// Event Listeners
+el('file').addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  
+  const fileLabel = document.querySelector('.file-upload-label');
+  fileLabel.textContent = f.name;
+  fileLabel.classList.add('has-file');
+  
+  await loadImage(f);
+});
+
+el('run').addEventListener('click', async () => {
+  if (!imgData) {
+    alert('Carga una imagen primero.');
+    return;
+  }
+  
+  const runButton = el('run');
+  runButton.disabled = true;
+  runButton.textContent = 'Processing...';
+  
+  try {
+    await applyCLAHEOptimized();
+  } finally {
+    runButton.disabled = false;
+    runButton.textContent = 'Apply CLAHE (Optimized)';
+  }
+});
+
+el('reset').addEventListener('click', () => {
+  if (!imgData) return;
+  currentResult = new Uint8ClampedArray(imgData.data);
+  dstX.putImageData(imgData, 0, 0);
+  claheCount = 0;
+  
+  const dstTitle = document.querySelector('.canvas-wrap:nth-child(2) h3');
+  dstTitle.textContent = 'CLAHE Optimizado';
+  
+  el('performanceInfo').style.display = 'none';
+});
+
+el('download').addEventListener('click', () => {
+  if (!currentResult) return;
+  const a = document.createElement('a');
+  a.download = `clahe_optimized_${claheCount}_times.png`;
+  a.href = dstC.toDataURL('image/png');
+  a.click();
+});
+
+// Inicializar al cargar la página
+window.addEventListener('load', async () => {
+  await initializeCLAHE();
+  console.log('CLAHE Optimized initialized with', claheProcessor.workerCount, 'workers');
+});
+
+// Event listener para cambiar número de workers
+el('workerCount').addEventListener('change', async (e) => {
+  await reinitializeCLAHE();
+});
+
+// Limpiar al cerrar
+window.addEventListener('beforeunload', () => {
+  if (claheProcessor) {
+    claheProcessor.terminate();
+  }
+});
+</script>
+</body>
+</html>

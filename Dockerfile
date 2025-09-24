@@ -25,21 +25,23 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Download LFS files directly from GitHub using public API
+# Download LFS files directly from GitHub using public API (5 model files)
 RUN if [ -f ".gitattributes" ] && grep -q "\.pth.*lfs" .gitattributes; then \
-        echo "Detected LFS configuration, downloading LFS files directly..."; \
+        echo "Detected LFS configuration, downloading 5 model files..."; \
         curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model%20(11).pth" -o "final_model (11).pth" || echo "Failed to download final_model (11).pth"; \
         curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus_improved.pth" -o "final_model_tarsus_improved.pth" || echo "Failed to download final_model_tarsus_improved.pth"; \
         curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus.pth" -o "final_model_tarsus.pth" || echo "Failed to download final_model_tarsus.pth"; \
+        curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_improved_fixed.pth" -o "final_model_improved_fixed.pth" || echo "Failed to download final_model_improved_fixed.pth"; \
+        curl -L "https://github.com/juliodiaz0209/TORTUOSITY/raw/main/final_model_tarsus_improved%20(6).pth" -o "final_model_tarsus_improved (6).pth" || echo "Failed to download final_model_tarsus_improved (6).pth"; \
         ls -la *.pth; \
     fi
 
 # Create necessary directories
 RUN mkdir -p temp results static
 
-# Debug: List files to verify everything was copied
-RUN ls -la
-RUN echo "Model files:" && ls -la *.pth || echo "No .pth files found"
+# Debug: List files to verify everything was copied and downloaded
+RUN echo "All files in app directory:" && ls -la
+RUN echo "Model files downloaded:" && ls -la *.pth || echo "No .pth files found"
 
 # Expose port (will be overridden by Cloud Run)
 EXPOSE 8000
