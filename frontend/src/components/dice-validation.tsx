@@ -36,8 +36,18 @@ function calculateDice(groundTruth: Uint8ClampedArray, prediction: Uint8ClampedA
   let predSum = 0;
 
   for (let i = 0; i < groundTruth.length; i += 4) {  // RGBA, check every 4th pixel
-    const gtPixel = groundTruth[i] > 127 ? 1 : 0;  // Binarize
-    const predPixel = prediction[i] > 127 ? 1 : 0;
+    // Ground truth is drawn in green (R=0, G=255, B=0), so check green channel
+    const gtG = groundTruth[i + 1]; // Green channel
+    // Consider pixel as mask if green channel > 127 (half of 255)
+    const gtPixel = gtG > 127 ? 1 : 0;
+
+    // Predicted mask is usually grayscale, so check any RGB channel
+    const predR = prediction[i];
+    const predG = prediction[i + 1];
+    const predB = prediction[i + 2];
+    // Use max of RGB channels (works for grayscale where R=G=B)
+    const predGray = Math.max(predR, predG, predB);
+    const predPixel = predGray > 127 ? 1 : 0;
 
     if (gtPixel === 1 && predPixel === 1) intersection++;
     if (gtPixel === 1) gtSum++;
@@ -62,6 +72,7 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
   const [error, setError] = useState<string | null>(null);
   const [diceScore, setDiceScore] = useState<number | null>(null);
   const [predictedMaskUrl, setPredictedMaskUrl] = useState<string | null>(null);
+  const [groundTruthMaskUrl, setGroundTruthMaskUrl] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -249,6 +260,8 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     if (!maskCtx) return;
 
     maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    setGroundTruthMaskUrl(null);
+    setDiceScore(null);
     redrawCanvas();
   };
 
@@ -259,8 +272,26 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     setError(null);
     setDiceScore(null);
     setPredictedMaskUrl(null);
+    setGroundTruthMaskUrl(null);
 
     try {
+      // Get ground truth mask from canvas first
+      const maskCanvas = maskCanvasRef.current;
+      if (!maskCanvas) {
+        throw new Error("No se ha dibujado la máscara ground truth");
+      }
+
+      // Convert mask canvas to image URL for display
+      const groundTruthMaskDataUrl = maskCanvas.toDataURL("image/png");
+      setGroundTruthMaskUrl(groundTruthMaskDataUrl);
+
+      const maskCtx = maskCanvas.getContext("2d");
+      if (!maskCtx) {
+        throw new Error("No se pudo obtener el contexto del canvas de máscara");
+      }
+
+      const groundTruthData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+
       // Send original image to backend for analysis
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -283,17 +314,6 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
 
       setPredictedMaskUrl(predictedMaskDataUrl);
 
-      // Get ground truth mask from canvas
-      const maskCanvas = maskCanvasRef.current;
-      if (!maskCanvas) {
-        throw new Error("No se ha dibujado la máscara ground truth");
-      }
-
-      const maskCtx = maskCanvas.getContext("2d");
-      if (!maskCtx) return;
-
-      const groundTruthData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-
       // Load predicted mask
       const predImg = new Image();
       await new Promise((resolve, reject) => {
@@ -306,14 +326,34 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
       predCanvas.width = predImg.width;
       predCanvas.height = predImg.height;
       const predCtx = predCanvas.getContext("2d");
-      if (!predCtx) return;
+      if (!predCtx) {
+        throw new Error("No se pudo obtener el contexto del canvas de predicción");
+      }
 
       predCtx.drawImage(predImg, 0, 0);
       const predictedData = predCtx.getImageData(0, 0, predCanvas.width, predCanvas.height);
 
-      // Calculate Dice
-      const dice = calculateDice(groundTruthData.data, predictedData.data);
-      setDiceScore(dice);
+      // Ensure masks have the same dimensions
+      if (groundTruthData.width !== predictedData.width || groundTruthData.height !== predictedData.height) {
+        // Resize ground truth to match predicted mask dimensions
+        const resizedCanvas = document.createElement("canvas");
+        resizedCanvas.width = predictedData.width;
+        resizedCanvas.height = predictedData.height;
+        const resizedCtx = resizedCanvas.getContext("2d");
+        if (!resizedCtx) {
+          throw new Error("No se pudo redimensionar la máscara ground truth");
+        }
+        resizedCtx.drawImage(maskCanvas, 0, 0, predictedData.width, predictedData.height);
+        const resizedGroundTruthData = resizedCtx.getImageData(0, 0, resizedCanvas.width, resizedCanvas.height);
+        
+        // Calculate Dice with resized masks
+        const dice = calculateDice(resizedGroundTruthData.data, predictedData.data);
+        setDiceScore(dice);
+      } else {
+        // Calculate Dice
+        const dice = calculateDice(groundTruthData.data, predictedData.data);
+        setDiceScore(dice);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error en el análisis");
     } finally {
@@ -479,12 +519,18 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  <div>
-                    <h4 className="font-semibold mb-2">Máscara Ground Truth</h4>
-                    <div className="border rounded-lg overflow-hidden">
-                      <canvas ref={maskCanvasRef} className="w-full" />
+                  {groundTruthMaskUrl && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Máscara Ground Truth</h4>
+                      <div className="border rounded-lg overflow-hidden">
+                        <img
+                          src={groundTruthMaskUrl}
+                          alt="Máscara ground truth"
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {predictedMaskUrl && (
                     <div>
                       <h4 className="font-semibold mb-2">Máscara Predicha</h4>
