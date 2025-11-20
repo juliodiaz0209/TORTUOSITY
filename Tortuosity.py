@@ -467,11 +467,15 @@ def show_combined_result_with_models(image_path, maskrcnn_model, unet_model, dev
     img_arr = Image.open(buf)
     plt.close() # Close the plot to free memory
 
+    # Convert pred_instance_cleaned to binary mask (0 and 1) for Dice calculation
+    binary_mask_glands = (pred_instance_cleaned > 0).astype(np.uint8)
+
     # Return both the image and tortuosity data
     return img_arr, {
         'avg_tortuosity': avg_tortuosity,
         'individual_tortuosities': gland_tortuosities,
-        'num_glands': len(gland_ids)
+        'num_glands': len(gland_ids),
+        'binary_mask_glands': binary_mask_glands  # Binary mask for Dice calculation
     }
 
 def show_combined_result(image_path, maskrcnn_model_path, unet_model_path, device):

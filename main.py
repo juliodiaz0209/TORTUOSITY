@@ -432,10 +432,21 @@ async def analyze_image(
         result_image.save(img_buffer, format='PNG')
         img_buffer.seek(0)
         img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
-        
+
+        # Convert binary mask to base64 (PNG) for frontend
+        binary_mask = tortuosity_data.get('binary_mask_glands')
+        binary_mask_base64 = None
+        if binary_mask is not None:
+            # Convert binary mask (0/1) to image (0/255) for PNG encoding
+            mask_image = Image.fromarray((binary_mask * 255).astype(np.uint8), mode='L')
+            mask_buffer = io.BytesIO()
+            mask_image.save(mask_buffer, format='PNG')
+            mask_buffer.seek(0)
+            binary_mask_base64 = base64.b64encode(mask_buffer.getvalue()).decode()
+
         # Clean up temporary file
         background_tasks.add_task(os.unlink, temp_file_path) if background_tasks else os.unlink(temp_file_path)
-        
+
         # Return results
         return {
             "success": True,
@@ -445,6 +456,7 @@ async def analyze_image(
                 "avg_tortuosity": round(tortuosity_data['avg_tortuosity'], 3),
                 "num_glands": tortuosity_data['num_glands'],
                 "individual_tortuosities": [round(t, 3) for t in tortuosity_data['individual_tortuosities']],
+                "binary_mask_glands": f"data:image/png;base64,{binary_mask_base64}" if binary_mask_base64 else None,
                 "analysis_info": {
                     "total_glands_analyzed": len(tortuosity_data['individual_tortuosities']),
                     "tortuosity_range": {

@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ResultsDisplay } from "@/components/results-display";
 import { PhotoManager } from "@/components/photo-manager";
+import { DiceValidation } from "@/components/dice-validation";
 import { StoredPhoto } from "@/lib/photo-storage";
 import {
   Eye,
@@ -26,7 +27,8 @@ import {
   FileImage,
   Camera,
   Menu,
-  X
+  X,
+  Calculator
 } from "lucide-react";
 
 interface AnalysisResult {
@@ -72,7 +74,7 @@ export default function DashboardPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [activeTab, setActiveTab] = useState<'upload' | 'capture' | 'results' | 'info'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'capture' | 'results' | 'info' | 'dice'>('upload');
   const [claheImage, setClaheImage] = useState<string | null>(null);
   const [isApplyingClahe, setIsApplyingClahe] = useState(false);
   const [convertToGray, setConvertToGray] = useState(true);
@@ -435,6 +437,12 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('capture')}
             />
             <SidebarItem
+              icon={Calculator}
+              label="Validación Dice"
+              active={activeTab === 'dice'}
+              onClick={() => setActiveTab('dice')}
+            />
+            <SidebarItem
               icon={BarChart3}
               label="Resultados"
               active={activeTab === 'results'}
@@ -493,12 +501,14 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold">
             {activeTab === 'upload' && 'Análisis de Imagen'}
             {activeTab === 'capture' && 'Captura de Imagen IR - Módulo Especializado'}
+            {activeTab === 'dice' && 'Validación Dice - Segmentación Manual'}
             {activeTab === 'results' && 'Resultados del Análisis'}
             {activeTab === 'info' && 'Información del Sistema'}
           </h2>
           <p className="text-muted-foreground">
             {activeTab === 'upload' && 'Sube una imagen del párpado para analizar la tortuosidad glandular'}
             {activeTab === 'capture' && 'Conecta tu módulo IR especializado y captura imágenes para análisis profesional de meibografía'}
+            {activeTab === 'dice' && 'Dibuja manualmente la máscara ground truth y calcula el Dice Coefficient con la predicción del modelo'}
             {activeTab === 'results' && 'Visualiza los resultados detallados del análisis'}
             {activeTab === 'info' && 'Información sobre la metodología y modelos utilizados'}
           </p>
@@ -703,7 +713,7 @@ export default function DashboardPage() {
 
         {activeTab === 'capture' && (
           <div className="animate-fade-in bg-background">
-            <PhotoManager 
+            <PhotoManager
               onPhotoSelect={handleCapturedPhotoSelect}
               onAnalysisComplete={(results) => {
                 setResults(results);
@@ -711,6 +721,12 @@ export default function DashboardPage() {
               }}
               onTabChange={setActiveTab}
             />
+          </div>
+        )}
+
+        {activeTab === 'dice' && (
+          <div className="animate-fade-in bg-background">
+            <DiceValidation onTabChange={setActiveTab} />
           </div>
         )}
 
