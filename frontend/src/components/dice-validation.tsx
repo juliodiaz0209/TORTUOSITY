@@ -159,20 +159,17 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw original image from cache (no async loading!)
-    if (cachedImageRef.current) {
+    // Draw base image (CLAHE if enabled and available, otherwise original)
+    if (showClahe && cachedClaheImageRef.current) {
+      // Show CLAHE image as the base (complete, not overlay)
+      ctx.drawImage(cachedClaheImageRef.current, 0, 0);
+    } else if (cachedImageRef.current) {
+      // Show original image if CLAHE is not enabled or not available
       ctx.drawImage(cachedImageRef.current, 0, 0);
-
-      // Draw CLAHE overlay if enabled
-      if (showClahe && cachedClaheImageRef.current) {
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(cachedClaheImageRef.current, 0, 0);
-        ctx.globalAlpha = 1.0;
-      }
-
-      // Draw mask on top
-      ctx.drawImage(maskCanvas, 0, 0);
     }
+
+    // Draw mask on top
+    ctx.drawImage(maskCanvas, 0, 0);
   };
 
   const applyClaheFilter = async () => {
@@ -182,17 +179,25 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     setError(null);
 
     try {
+      // Usar la implementación optimizada del frontend (igual que en Análisis de Imagen)
       const { applyCLAHEToImage, fileToImageData, imageDataToFile } = await import("../lib/clahe-optimized");
-
+      
+      // Convertir archivo a ImageData
       const imageData = await fileToImageData(selectedFile);
+      
+      // Aplicar CLAHE con parámetros optimizados (exactamente igual que en Análisis de Imagen)
       const processedImageData = await applyCLAHEToImage(imageData, {
         blockSize: 64,
         bins: 256,
         slope: 3,
         chunkSize: 64,
         workerCount: 2,
+        onProgress: (progress, status) => {
+          console.log(`CLAHE Progress: ${progress.toFixed(1)}% - ${status}`);
+        }
       });
 
+      // Crear data URL para mostrar la imagen procesada
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       canvas.width = processedImageData.width;
@@ -203,8 +208,11 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
       setClaheImageUrl(dataUrl);
       setShowClahe(true);
       redrawCanvas();
+      
+      console.log('CLAHE filter applied successfully using frontend implementation');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error aplicando CLAHE");
+      console.error('Error applying CLAHE filter:', err);
+      setError(err instanceof Error ? err.message : "Error aplicando filtro CLAHE");
     } finally {
       setIsApplyingClahe(false);
     }
@@ -230,16 +238,23 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     if (!canvas || !maskCanvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Calculate scale factor between visual size and internal canvas size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    // Scale mouse coordinates to match canvas internal coordinates
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
     const maskCtx = maskCanvas.getContext("2d");
     if (!maskCtx) return;
 
     maskCtx.globalCompositeOperation = drawMode === "brush" ? "source-over" : "destination-out";
     maskCtx.fillStyle = "rgba(0, 255, 0, 0.5)"; // Green for glands
+    // Scale brush size to match canvas scale
+    const scale = (scaleX + scaleY) / 2;
+    const scaledBrushSize = brushSize * scale;
     maskCtx.beginPath();
-    maskCtx.arc(x, y, brushSize, 0, 2 * Math.PI);
+    maskCtx.arc(x, y, scaledBrushSize, 0, 2 * Math.PI);
     maskCtx.fill();
 
     // Use requestAnimationFrame for smoother rendering
