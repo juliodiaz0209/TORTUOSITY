@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 interface DiceValidationProps {
-  onTabChange?: (tab: string) => void;
+  onTabChange?: (tab: 'upload' | 'capture' | 'results' | 'info' | 'dice') => void;
 }
 
 // Calculate Dice Coefficient between two binary masks
@@ -65,15 +65,24 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cachedImageRef = useRef<HTMLImageElement | null>(null);
+  const cachedClaheImageRef = useRef<HTMLImageElement | null>(null);
+  const redrawRequestRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (selectedFile && !originalImageUrl) {
+    if (selectedFile) {
       const url = URL.createObjectURL(selectedFile);
       setOriginalImageUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [selectedFile, originalImageUrl]);
 
+      // Cleanup only when selectedFile changes or component unmounts
+      return () => {
+        URL.revokeObjectURL(url);
+        setOriginalImageUrl(null);
+      };
+    }
+  }, [selectedFile]);
+
+  // Load and cache original image
   useEffect(() => {
     if (originalImageUrl && canvasRef.current) {
       const canvas = canvasRef.current;
@@ -82,6 +91,7 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
 
       const img = new Image();
       img.onload = () => {
+        cachedImageRef.current = img; // Cache the image
         canvas.width = img.width;
         canvas.height = img.height;
 
@@ -95,7 +105,24 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
       };
       img.src = originalImageUrl;
     }
-  }, [originalImageUrl, claheImageUrl, showClahe]);
+  }, [originalImageUrl]);
+
+  // Load and cache CLAHE image
+  useEffect(() => {
+    if (claheImageUrl) {
+      const img = new Image();
+      img.onload = () => {
+        cachedClaheImageRef.current = img; // Cache the CLAHE image
+        redrawCanvas();
+      };
+      img.src = claheImageUrl;
+    }
+  }, [claheImageUrl]);
+
+  // Redraw when showClahe changes
+  useEffect(() => {
+    redrawCanvas();
+  }, [showClahe]);
 
   const loadExampleImage = async () => {
     try {
@@ -121,30 +148,19 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw original image
-    if (originalImageUrl) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0);
+    // Draw original image from cache (no async loading!)
+    if (cachedImageRef.current) {
+      ctx.drawImage(cachedImageRef.current, 0, 0);
 
-        // Draw CLAHE overlay if enabled
-        if (showClahe && claheImageUrl) {
-          const claheImg = new Image();
-          claheImg.onload = () => {
-            ctx.globalAlpha = 0.5;
-            ctx.drawImage(claheImg, 0, 0);
-            ctx.globalAlpha = 1.0;
+      // Draw CLAHE overlay if enabled
+      if (showClahe && cachedClaheImageRef.current) {
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(cachedClaheImageRef.current, 0, 0);
+        ctx.globalAlpha = 1.0;
+      }
 
-            // Draw mask on top
-            ctx.drawImage(maskCanvas, 0, 0);
-          };
-          claheImg.src = claheImageUrl;
-        } else {
-          // Draw mask on top
-          ctx.drawImage(maskCanvas, 0, 0);
-        }
-      };
-      img.src = originalImageUrl;
+      // Draw mask on top
+      ctx.drawImage(maskCanvas, 0, 0);
     }
   };
 
@@ -215,7 +231,14 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
     maskCtx.arc(x, y, brushSize, 0, 2 * Math.PI);
     maskCtx.fill();
 
-    redrawCanvas();
+    // Use requestAnimationFrame for smoother rendering
+    if (redrawRequestRef.current !== null) {
+      cancelAnimationFrame(redrawRequestRef.current);
+    }
+    redrawRequestRef.current = requestAnimationFrame(() => {
+      redrawCanvas();
+      redrawRequestRef.current = null;
+    });
   };
 
   const clearMask = () => {
