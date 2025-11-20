@@ -180,10 +180,25 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
 
     try {
       // Usar la implementación optimizada del frontend (igual que en Análisis de Imagen)
-      const { applyCLAHEToImage, fileToImageData, imageDataToFile } = await import("../lib/clahe-optimized");
+      const { applyCLAHEToImage, fileToImageData } = await import("../lib/clahe-optimized");
       
-      // Convertir archivo a ImageData
-      const imageData = await fileToImageData(selectedFile);
+      // Si ya hay una imagen CLAHE procesada, usarla como base (permite aplicar CLAHE múltiples veces)
+      // Si no, usar la imagen original
+      let imageData: ImageData;
+      if (claheImageUrl && cachedClaheImageRef.current) {
+        // Convertir la imagen CLAHE actual directamente a ImageData
+        const canvas = document.createElement("canvas");
+        canvas.width = cachedClaheImageRef.current.width;
+        canvas.height = cachedClaheImageRef.current.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No se pudo obtener el contexto del canvas");
+        ctx.drawImage(cachedClaheImageRef.current, 0, 0);
+        const imageDataFromCache = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        imageData = imageDataFromCache;
+      } else {
+        // Convertir archivo original a ImageData
+        imageData = await fileToImageData(selectedFile);
+      }
       
       // Aplicar CLAHE con parámetros optimizados (exactamente igual que en Análisis de Imagen)
       const processedImageData = await applyCLAHEToImage(imageData, {
@@ -307,9 +322,26 @@ export function DiceValidation({ onTabChange }: DiceValidationProps) {
 
       const groundTruthData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
 
-      // Send original image to backend for analysis
+      // Send image to backend for analysis (CLAHE if active, otherwise original)
+      let fileToSend: File;
+      if (showClahe && claheImageUrl && cachedClaheImageRef.current) {
+        // Convert CLAHE image to File
+        const { imageDataToFile } = await import("../lib/clahe-optimized");
+        const canvas = document.createElement("canvas");
+        canvas.width = cachedClaheImageRef.current.width;
+        canvas.height = cachedClaheImageRef.current.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No se pudo obtener el contexto del canvas");
+        ctx.drawImage(cachedClaheImageRef.current, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        fileToSend = await imageDataToFile(imageData, "clahe_processed.png");
+      } else {
+        // Use original image
+        fileToSend = selectedFile;
+      }
+
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", fileToSend);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
