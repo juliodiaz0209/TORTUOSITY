@@ -9,6 +9,8 @@ from PIL import Image
 import torch.nn.functional as F
 import random
 import cv2  # Needed for contour operations in tortuosity calculation
+from skimage.morphology import skeletonize
+from scipy.ndimage import distance_transform_edt
 
 # Definir dispositivo (GPU o CPU)
 device = torch.device("cpu")  # Force CPU for Cloud Run compatibility
@@ -353,14 +355,16 @@ def generate_random_color():
 def calculate_gland_tortuosity(mask):
     """
     Calcula la tortuosidad, longitud y grosor de una glándula de Meibomio.
+
     Tortuosidad = (Perímetro / (2 × dimensión mayor del rectángulo mínimo)) - 1
-    Longitud   = dimensión mayor del rectángulo mínimo (px)
-    Grosor     = dimensión menor del rectángulo mínimo (px)
+    Longitud    = número de píxeles del esqueleto (longitud curvilínea real, px)
+    Grosor      = 2 × media de la transformada de distancia sobre el esqueleto (px)
 
     Returns:
         dict con 'tortuosity', 'length_px', 'thickness_px'
     """
-    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    binary = mask.astype(np.uint8)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
         return {'tortuosity': 0.0, 'length_px': 0.0, 'thickness_px': 0.0}
@@ -370,12 +374,18 @@ def calculate_gland_tortuosity(mask):
 
     rect = cv2.minAreaRect(contour)
     (_, (width, height), _) = rect
+    max_dim = max(width, height) if max(width, height) > 0 else 1.0
 
-    length_px = float(max(width, height)) if max(width, height) > 0 else 1.0
-    thickness_px = float(min(width, height)) if min(width, height) > 0 else 1.0
-
-    tortuosity = (perimeter / (2 * length_px)) - 1
+    tortuosity = (perimeter / (2 * max_dim)) - 1
     tortuosity = min(tortuosity, 1.0)
+
+    # Skeleton-based length and thickness
+    skel = skeletonize(binary > 0)
+    length_px = float(np.sum(skel))
+
+    dist = distance_transform_edt(binary > 0)
+    skel_pixels = dist[skel]
+    thickness_px = float(2.0 * np.mean(skel_pixels)) if skel_pixels.size > 0 else 0.0
 
     return {'tortuosity': tortuosity, 'length_px': length_px, 'thickness_px': thickness_px}
 
