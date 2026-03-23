@@ -352,41 +352,32 @@ def generate_random_color():
 # ------------------------------------------------------
 def calculate_gland_tortuosity(mask):
     """
-    Calcula la tortuosidad de una glándula de Meibomio según la fórmula:
-    Tortuosidad = (Perímetro / (2 × Altura del rectángulo mínimo externo)) - 1
-
-    Args:
-        mask: Máscara binaria de la glándula
+    Calcula la tortuosidad, longitud y grosor de una glándula de Meibomio.
+    Tortuosidad = (Perímetro / (2 × dimensión mayor del rectángulo mínimo)) - 1
+    Longitud   = dimensión mayor del rectángulo mínimo (px)
+    Grosor     = dimensión menor del rectángulo mínimo (px)
 
     Returns:
-        Valor de tortuosidad
+        dict con 'tortuosity', 'length_px', 'thickness_px'
     """
-    # Encontrar contornos en la máscara
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
-        return 0.0
+        return {'tortuosity': 0.0, 'length_px': 0.0, 'thickness_px': 0.0}
 
-    # Usar el contorno más grande (debería ser la glándula)
     contour = max(contours, key=cv2.contourArea)
-
-    # Calcular el perímetro
     perimeter = cv2.arcLength(contour, True)
 
-    # Obtener el rectángulo mínimo externo
     rect = cv2.minAreaRect(contour)
     (_, (width, height), _) = rect
 
-    # Usar la dimensión más larga como altura
-    max_dim = max(width, height) if max(width, height) > 0 else 1
+    length_px = float(max(width, height)) if max(width, height) > 0 else 1.0
+    thickness_px = float(min(width, height)) if min(width, height) > 0 else 1.0
 
-    # Calcular tortuosidad
-    tortuosity = (perimeter / (2 * max_dim)) - 1
-
-    # Limitar el valor máximo de tortuosidad a 1.0 para evitar valores extremos
+    tortuosity = (perimeter / (2 * length_px)) - 1
     tortuosity = min(tortuosity, 1.0)
 
-    return tortuosity
+    return {'tortuosity': tortuosity, 'length_px': length_px, 'thickness_px': thickness_px}
 
 # ------------------------------------------------------
 # Función de visualización y combinación final
@@ -414,25 +405,26 @@ def show_combined_result_with_models(image_path, maskrcnn_model, unet_model, dev
     # Crear imagen de instancias: asignar un color aleatorio único a cada instancia
     colored_instance_image = np.zeros((pred_instance_cleaned.shape[0], pred_instance_cleaned.shape[1], 3), dtype=np.uint8)
 
-    # Calcular la tortuosidad para cada glándula
+    # Calcular métricas para cada glándula
     gland_tortuosities = []
+    gland_lengths = []
+    gland_thicknesses = []
     gland_ids = np.unique(pred_instance_cleaned)
     gland_ids = gland_ids[gland_ids > 0]  # Excluir el fondo (0)
 
     for i in gland_ids:
-        # Crear una máscara para esta glándula específica
         gland_mask = (pred_instance_cleaned == i).astype(np.uint8)
+        metrics = calculate_gland_tortuosity(gland_mask)
+        gland_tortuosities.append(metrics['tortuosity'])
+        gland_lengths.append(metrics['length_px'])
+        gland_thicknesses.append(metrics['thickness_px'])
 
-        # Calcular la tortuosidad
-        tortuosity = calculate_gland_tortuosity(gland_mask)
-        gland_tortuosities.append(tortuosity)
-
-        # Asignar color basado en la tortuosidad (opcional: usar un mapa de colores)
         color = generate_random_color()
         colored_instance_image[pred_instance_cleaned == i] = color
 
-    # Calcular la tortuosidad promedio
     avg_tortuosity = np.mean(gland_tortuosities) if gland_tortuosities else 0.0
+    avg_length = np.mean(gland_lengths) if gland_lengths else 0.0
+    avg_thickness = np.mean(gland_thicknesses) if gland_thicknesses else 0.0
 
     # Abrir la imagen original
     image = Image.open(image_path).convert("RGB")
@@ -446,36 +438,34 @@ def show_combined_result_with_models(image_path, maskrcnn_model, unet_model, dev
     # Redimensionar la máscara de Tarsus para que tenga el mismo tamaño que la imagen original para su visualización
     tarsus_mask_overlay = F.interpolate(mask_tarsus.unsqueeze(0), size=(image_np.shape[0], image_np.shape[1]), mode='bilinear', align_corners=True)
     tarsus_mask_overlay = tarsus_mask_overlay.squeeze(0).cpu().numpy()
-    tarsus_mask_overlay = np.squeeze(tarsus_mask_overlay, axis=0)  # Eliminar la dimensión extra
+    tarsus_mask_overlay = np.squeeze(tarsus_mask_overlay, axis=0)
     tarsus_mask_overlay = (tarsus_mask_overlay > 0.5).astype(np.uint8)
 
-    # Visualizar la imagen final: instancias en colores únicos y el contorno del párpado con transparencia
     plt.figure(figsize=(10, 10))
     plt.imshow(result_image)
-    plt.imshow(tarsus_mask_overlay, cmap="jet", alpha=0.5)  # Overlay del contorno
-
-    # Añadir información de tortuosidad al título
+    plt.imshow(tarsus_mask_overlay, cmap="jet", alpha=0.5)
     plt.title(f"Instancias (colores únicos) y contorno del párpado\nTortuosidad promedio: {avg_tortuosity:.3f}")
     plt.axis("off")
     # plt.show() # Commented out for Streamlit integration
 
-    # Return the final image array and tortuosity data
     import io
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
     buf.seek(0)
     img_arr = Image.open(buf)
-    plt.close() # Close the plot to free memory
+    plt.close()
 
-    # Convert pred_instance_cleaned to binary mask (0 and 1) for Dice calculation
     binary_mask_glands = (pred_instance_cleaned > 0).astype(np.uint8)
 
-    # Return both the image and tortuosity data
     return img_arr, {
         'avg_tortuosity': avg_tortuosity,
         'individual_tortuosities': gland_tortuosities,
         'num_glands': len(gland_ids),
-        'binary_mask_glands': binary_mask_glands  # Binary mask for Dice calculation
+        'avg_length_px': avg_length,
+        'avg_thickness_px': avg_thickness,
+        'individual_lengths': gland_lengths,
+        'individual_thicknesses': gland_thicknesses,
+        'binary_mask_glands': binary_mask_glands,
     }
 
 def show_combined_result(image_path, maskrcnn_model_path, unet_model_path, device):
@@ -503,64 +493,61 @@ def show_combined_result(image_path, maskrcnn_model_path, unet_model_path, devic
     # Crear imagen de instancias: asignar un color aleatorio único a cada instancia
     colored_instance_image = np.zeros((pred_instance_cleaned.shape[0], pred_instance_cleaned.shape[1], 3), dtype=np.uint8)
 
-    # Calcular la tortuosidad para cada glándula
+    # Calcular métricas para cada glándula
     gland_tortuosities = []
+    gland_lengths = []
+    gland_thicknesses = []
     gland_ids = np.unique(pred_instance_cleaned)
     gland_ids = gland_ids[gland_ids > 0]  # Excluir el fondo (0)
 
     for i in gland_ids:
-        # Crear una máscara para esta glándula específica
         gland_mask = (pred_instance_cleaned == i).astype(np.uint8)
+        metrics = calculate_gland_tortuosity(gland_mask)
+        gland_tortuosities.append(metrics['tortuosity'])
+        gland_lengths.append(metrics['length_px'])
+        gland_thicknesses.append(metrics['thickness_px'])
 
-        # Calcular la tortuosidad
-        tortuosity = calculate_gland_tortuosity(gland_mask)
-        gland_tortuosities.append(tortuosity)
-
-        # Asignar color basado en la tortuosidad (opcional: usar un mapa de colores)
         color = generate_random_color()
         colored_instance_image[pred_instance_cleaned == i] = color
 
-    # Calcular la tortuosidad promedio
     avg_tortuosity = np.mean(gland_tortuosities) if gland_tortuosities else 0.0
+    avg_length = np.mean(gland_lengths) if gland_lengths else 0.0
+    avg_thickness = np.mean(gland_thicknesses) if gland_thicknesses else 0.0
 
-    # Abrir la imagen original
     image = Image.open(image_path).convert("RGB")
     image_np = np.array(image)
 
-    # Superponer las instancias (colores sólidos) sobre la imagen original
     result_image = image_np.copy()
     mask_inst = (colored_instance_image.sum(axis=-1) > 0)
     result_image[mask_inst] = colored_instance_image[mask_inst]
 
-    # Redimensionar la máscara de Tarsus para que tenga el mismo tamaño que la imagen original para su visualización
     tarsus_mask_overlay = F.interpolate(mask_tarsus.unsqueeze(0), size=(image_np.shape[0], image_np.shape[1]), mode='bilinear', align_corners=True)
     tarsus_mask_overlay = tarsus_mask_overlay.squeeze(0).cpu().numpy()
-    tarsus_mask_overlay = np.squeeze(tarsus_mask_overlay, axis=0)  # Eliminar la dimensión extra
+    tarsus_mask_overlay = np.squeeze(tarsus_mask_overlay, axis=0)
     tarsus_mask_overlay = (tarsus_mask_overlay > 0.5).astype(np.uint8)
 
-    # Visualizar la imagen final: instancias en colores únicos y el contorno del párpado con transparencia
     plt.figure(figsize=(10, 10))
     plt.imshow(result_image)
-    plt.imshow(tarsus_mask_overlay, cmap="jet", alpha=0.5)  # Overlay del contorno
-
-    # Añadir información de tortuosidad al título
+    plt.imshow(tarsus_mask_overlay, cmap="jet", alpha=0.5)
     plt.title(f"Instancias (colores únicos) y contorno del párpado\nTortuosidad promedio: {avg_tortuosity:.3f}")
     plt.axis("off")
     # plt.show() # Commented out for Streamlit integration
 
-    # Return the final image array and tortuosity data
     import io
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
     buf.seek(0)
     img_arr = Image.open(buf)
-    plt.close() # Close the plot to free memory
+    plt.close()
 
-    # Return both the image and tortuosity data
     return img_arr, {
         'avg_tortuosity': avg_tortuosity,
         'individual_tortuosities': gland_tortuosities,
-        'num_glands': len(gland_ids)
+        'num_glands': len(gland_ids),
+        'avg_length_px': avg_length,
+        'avg_thickness_px': avg_thickness,
+        'individual_lengths': gland_lengths,
+        'individual_thicknesses': gland_thicknesses,
     }
 
 

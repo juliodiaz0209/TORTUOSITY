@@ -448,6 +448,9 @@ async def analyze_image(
         background_tasks.add_task(os.unlink, temp_file_path) if background_tasks else os.unlink(temp_file_path)
 
         # Return results
+        individual_tortuosities = tortuosity_data['individual_tortuosities']
+        individual_lengths = tortuosity_data.get('individual_lengths', [])
+        individual_thicknesses = tortuosity_data.get('individual_thicknesses', [])
         return {
             "success": True,
             "message": "Analysis completed successfully",
@@ -455,13 +458,17 @@ async def analyze_image(
                 "processed_image": f"data:image/png;base64,{img_base64}",
                 "avg_tortuosity": round(tortuosity_data['avg_tortuosity'], 3),
                 "num_glands": tortuosity_data['num_glands'],
-                "individual_tortuosities": [round(t, 3) for t in tortuosity_data['individual_tortuosities']],
+                "individual_tortuosities": [round(t, 3) for t in individual_tortuosities],
+                "avg_length_px": round(tortuosity_data.get('avg_length_px', 0.0), 1),
+                "avg_thickness_px": round(tortuosity_data.get('avg_thickness_px', 0.0), 1),
+                "individual_lengths": [round(l, 1) for l in individual_lengths],
+                "individual_thicknesses": [round(t, 1) for t in individual_thicknesses],
                 "binary_mask_glands": f"data:image/png;base64,{binary_mask_base64}" if binary_mask_base64 else None,
                 "analysis_info": {
-                    "total_glands_analyzed": len(tortuosity_data['individual_tortuosities']),
+                    "total_glands_analyzed": len(individual_tortuosities),
                     "tortuosity_range": {
-                        "min": round(min(tortuosity_data['individual_tortuosities']), 3) if tortuosity_data['individual_tortuosities'] else 0,
-                        "max": round(max(tortuosity_data['individual_tortuosities']), 3) if tortuosity_data['individual_tortuosities'] else 0
+                        "min": round(min(individual_tortuosities), 3) if individual_tortuosities else 0,
+                        "max": round(max(individual_tortuosities), 3) if individual_tortuosities else 0
                     }
                 }
             }

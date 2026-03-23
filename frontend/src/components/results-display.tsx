@@ -4,12 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Eye, Activity, TrendingUp, Info, BarChart3 } from "lucide-react";
+import { Eye, Activity, TrendingUp, Info, BarChart3, Ruler, AlignVerticalJustifyCenter } from "lucide-react";
 
 interface TortuosityData {
   avg_tortuosity: number;
   num_glands: number;
   individual_tortuosities: number[];
+  avg_length_px: number;
+  avg_thickness_px: number;
+  individual_lengths: number[];
+  individual_thicknesses: number[];
   analysis_info: {
     total_glands_analyzed: number;
     tortuosity_range: {
@@ -40,7 +44,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Main Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Tortuosidad Promedio</CardTitle>
@@ -96,6 +100,28 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Longitud Media</CardTitle>
+            <Ruler className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_length_px.toFixed(1)}</div>
+            <p className="text-xs text-muted-foreground">píxeles</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Grosor Medio</CardTitle>
+            <AlignVerticalJustifyCenter className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_thickness_px.toFixed(1)}</div>
+            <p className="text-xs text-muted-foreground">píxeles</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Image and Table Row */}
@@ -128,7 +154,9 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs sm:text-sm">ID</TableHead>
-                    <TableHead className="text-xs sm:text-sm">Valor</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Tortuosidad</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Long. (px)</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Grosor (px)</TableHead>
                     <TableHead className="text-xs sm:text-sm">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -139,6 +167,12 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
                       <TableRow key={index}>
                         <TableCell className="font-medium text-xs sm:text-sm">G{index + 1}</TableCell>
                         <TableCell className="text-xs sm:text-sm">{value.toFixed(3)}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">
+                          {data.individual_lengths?.[index]?.toFixed(1) ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm">
+                          {data.individual_thicknesses?.[index]?.toFixed(1) ?? "—"}
+                        </TableCell>
                         <TableCell>
                           <Badge className={`${interpretation.color} text-xs`}>
                             {interpretation.text}

@@ -36,6 +36,10 @@ interface AnalysisResults {
     avg_tortuosity: number;
     num_glands: number;
     individual_tortuosities: number[];
+    avg_length_px: number;
+    avg_thickness_px: number;
+    individual_lengths: number[];
+    individual_thicknesses: number[];
     processed_image: string;
     analysis_info: {
       total_glands_analyzed: number;
