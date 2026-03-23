@@ -51,7 +51,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
             <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{data.avg_tortuosity.toFixed(3)}</div>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_tortuosity?.toFixed(3) ?? "—"}</div>
             <p className="text-xs text-muted-foreground">
               Valor global
             </p>
@@ -78,7 +78,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">
-              {data.analysis_info.tortuosity_range.min.toFixed(3)} - {data.analysis_info.tortuosity_range.max.toFixed(3)}
+              {data.analysis_info?.tortuosity_range?.min?.toFixed(3) ?? "—"} - {data.analysis_info?.tortuosity_range?.max?.toFixed(3) ?? "—"}
             </div>
             <p className="text-xs text-muted-foreground">
               Mínimo - Máximo
@@ -107,7 +107,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
             <Ruler className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{data.avg_length_px.toFixed(1)}</div>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_length_px?.toFixed(1) ?? "—"}</div>
             <p className="text-xs text-muted-foreground">píxeles</p>
           </CardContent>
         </Card>
@@ -118,7 +118,7 @@ export function ResultsDisplay({ data, processedImage }: ResultsDisplayProps) {
             <AlignVerticalJustifyCenter className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{data.avg_thickness_px.toFixed(1)}</div>
+            <div className="text-lg sm:text-2xl font-bold">{data.avg_thickness_px?.toFixed(1) ?? "—"}</div>
             <p className="text-xs text-muted-foreground">píxeles</p>
           </CardContent>
         </Card>

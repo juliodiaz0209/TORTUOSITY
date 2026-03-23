@@ -207,6 +207,10 @@ export function PhotoManager({ onPhotoSelect, onAnalysisComplete, onTabChange }:
           avg_tortuosity: result.data.avg_tortuosity,
           num_glands: result.data.num_glands,
           individual_tortuosities: result.data.individual_tortuosities,
+          avg_length_px: result.data.avg_length_px ?? 0,
+          avg_thickness_px: result.data.avg_thickness_px ?? 0,
+          individual_lengths: result.data.individual_lengths ?? [],
+          individual_thicknesses: result.data.individual_thicknesses ?? [],
           processed_image: result.data.processed_image || '',
           analysis_info: result.data.analysis_info || {
             total_glands_analyzed: result.data.num_glands || 0,
